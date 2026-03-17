@@ -112,6 +112,8 @@
 - `docs/实施步骤、依赖与模板建议.md`
 - `docs/integrations/transcription-flow.md`
 - `docs/implementation/mvp-slices.md`
+- `docs/implementation/kimi-agent-handoff.md`
+- `docs/implementation/kimi-agent-kickoff-prompt.md`
 
 这类文档回答“先做什么、接口怎么收敛、如何分切片推进”。
 
