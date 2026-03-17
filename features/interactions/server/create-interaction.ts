@@ -1,8 +1,15 @@
 import { db } from "@/lib/db"
 
+import { extractCustomerDataFromText } from "@/features/ai/server/extract-customer-data"
 import type { CreateInteractionInput } from "@/features/interactions/schemas/create-interaction"
 
 export async function createInteraction(input: CreateInteractionInput) {
+  const now = new Date()
+  const isTextInteraction = input.contentType === "text" && Boolean(input.sourceText)
+  const extraction = isTextInteraction
+    ? await extractCustomerDataFromText(input.sourceText ?? "")
+    : null
+
   const interaction = await db.interaction.create({
     data: {
       ownerId: input.ownerId ?? null,
@@ -15,7 +22,14 @@ export async function createInteraction(input: CreateInteractionInput) {
       fileSizeBytes: input.fileSizeBytes ?? null,
       durationSeconds: input.durationSeconds ?? null,
       sourceText: input.sourceText ?? null,
-      processingStatus: "pending",
+      processingStatus: isTextInteraction ? "completed" : "pending",
+      processedAt: isTextInteraction ? now : null,
+      aiSummary: extraction?.summary ?? null,
+      aiSalesSuggestion: extraction?.salesSuggestion ?? null,
+      aiExtractedData: extraction?.extractedData ?? {},
+      aiConfidence: extraction?.confidence ?? {},
+      extractionVersion: extraction ? "placeholder-rule-based-v1" : null,
+      modelName: extraction ? "rule-based-extractor" : null,
       confirmationStatus: "pending",
     },
     select: {
