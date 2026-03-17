@@ -10,12 +10,14 @@ const requestProcessingSchema = z.object({
 })
 
 interface RouteParams {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
 export async function POST(request: Request, { params }: RouteParams) {
   try {
-    if (!params.id) {
+    const { id } = await params
+
+    if (!id) {
       return NextResponse.json({ error: "Interaction ID is required." }, { status: 400 })
     }
 
@@ -23,7 +25,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     const input = requestProcessingSchema.parse(body)
 
     const result = await requestInteractionProcessing({
-      interactionId: params.id,
+      interactionId: id,
       fileId: input.fileId,
     })
 

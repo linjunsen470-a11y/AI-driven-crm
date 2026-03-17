@@ -6,12 +6,12 @@ import { confirmInteraction } from "@/features/interactions/server/confirm-inter
 import { confirmInteractionSchema } from "@/features/interactions/schemas/confirm-interaction"
 
 interface RouteParams {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
 export async function POST(request: Request, { params }: RouteParams) {
   try {
-    const { id } = params
+    const { id } = await params
 
     if (!id) {
       return NextResponse.json(

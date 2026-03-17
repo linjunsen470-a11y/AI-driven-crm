@@ -3,12 +3,12 @@ import { NextResponse } from "next/server"
 import { getInteraction } from "@/features/interactions/server/get-interaction"
 
 interface RouteParams {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
 export async function GET(_request: Request, { params }: RouteParams) {
   try {
-    const { id } = params
+    const { id } = await params
 
     if (!id) {
       return NextResponse.json(
