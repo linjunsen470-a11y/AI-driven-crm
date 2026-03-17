@@ -10,10 +10,12 @@ import {
   ArrowLeft,
   Calendar,
   CheckCircle,
+  FileUp,
   Heart,
   Loader2,
   MapPin,
   Phone,
+  Upload,
   User,
   Wallet,
 } from "lucide-react"
@@ -48,6 +50,15 @@ interface InteractionDetail {
   aiExtractedData: Record<string, unknown>
   aiConfidence: Record<string, number>
   createdAt: string
+  files: Array<{
+    id: string
+    category: string
+    status: string
+    originalName: string | null
+    mimeType: string | null
+    fileSizeBytes: number | null
+    createdAt: string
+  }>
   customer: {
     id: string
     name: string | null
@@ -164,6 +175,8 @@ export default function InteractionDetailPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isConfirming, setIsConfirming] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
+  const [uploadedFiles, setUploadedFiles] = useState<InteractionDetail["files"]>([])
   const id = params.id
 
   useEffect(() => {
@@ -181,6 +194,7 @@ export default function InteractionDetailPage() {
 
         const { data } = await response.json()
         setInteraction(data)
+        setUploadedFiles(data.files ?? [])
 
         const extracted = data.aiExtractedData || {}
 
@@ -223,8 +237,20 @@ export default function InteractionDetailPage() {
     }))
   }
 
-  async function handleConfirm() {
+  async function handleConfirm(
+    confirmationStatus: "confirmed" | "partially_confirmed" | "rejected" = "confirmed",
+  ) {
     if (!id) {
+      return
+    }
+
+    const rejectionReason =
+      confirmationStatus === "rejected"
+        ? window.prompt("请输入拒绝原因", "当前交互不适合建档")?.trim()
+        : undefined
+
+    if (confirmationStatus === "rejected" && !rejectionReason) {
+      setError("拒绝交互时必须填写原因。")
       return
     }
 
@@ -232,7 +258,10 @@ export default function InteractionDetailPage() {
     setError(null)
 
     try {
-      const sanitizedCustomerData = {
+      const sanitizedCustomerData =
+        confirmationStatus === "rejected"
+          ? undefined
+          : {
         name: toOptionalString(customerData.name),
         phone: toOptionalString(customerData.phone),
         city: toOptionalString(customerData.city),
@@ -258,6 +287,8 @@ export default function InteractionDetailPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          confirmationStatus,
+          rejectionReason,
           customerData: sanitizedCustomerData,
           createNewCustomer: !interaction?.customerId,
         }),
@@ -274,6 +305,43 @@ export default function InteractionDetailPage() {
       setError(confirmError instanceof Error ? confirmError.message : "确认失败")
     } finally {
       setIsConfirming(false)
+    }
+  }
+
+  async function handleFileUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (!file || !id) {
+      return
+    }
+
+    setIsUploading(true)
+    setError(null)
+
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("interactionId", id)
+      if (interaction?.customerId) {
+        formData.append("customerId", interaction.customerId)
+      }
+
+      const response = await fetch("/api/files/upload", {
+        method: "POST",
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const payload = await response.json()
+        throw new Error(payload.error || "上传失败")
+      }
+
+      const { data } = await response.json()
+      setUploadedFiles((previous) => [data, ...previous])
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "上传失败")
+    } finally {
+      setIsUploading(false)
+      event.target.value = ""
     }
   }
 
@@ -302,8 +370,8 @@ export default function InteractionDetailPage() {
     )
   }
 
-  const isConfirmed = interaction.confirmationStatus === "confirmed"
-  const canConfirm = interaction.processingStatus === "completed" && !isConfirmed
+  const isResolved = interaction.confirmationStatus !== "pending"
+  const canConfirm = interaction.processingStatus === "completed" && !isResolved
 
   return (
     <div className="space-y-6">
@@ -331,14 +399,18 @@ export default function InteractionDetailPage() {
               ? "default"
               : interaction.confirmationStatus === "rejected"
                 ? "destructive"
-                : "secondary"
+                : interaction.confirmationStatus === "partially_confirmed"
+                  ? "outline"
+                  : "secondary"
           }
         >
           {interaction.confirmationStatus === "confirmed"
             ? "已确认"
             : interaction.confirmationStatus === "rejected"
               ? "已拒绝"
-              : "待确认"}
+              : interaction.confirmationStatus === "partially_confirmed"
+                ? "部分确认"
+                : "待确认"}
         </Badge>
       </div>
 
@@ -349,7 +421,7 @@ export default function InteractionDetailPage() {
         </Alert>
       ) : null}
 
-      {!canConfirm && !isConfirmed ? (
+      {!canConfirm && !isResolved ? (
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
@@ -400,10 +472,10 @@ export default function InteractionDetailPage() {
               <CardTitle className="flex items-center gap-2 text-base">
                 <User className="h-4 w-4" />
                 客户信息
-                {isConfirmed ? (
+                {isResolved ? (
                   <Badge variant="outline" className="ml-auto">
                     <CheckCircle className="mr-1 h-3 w-3" />
-                    已确认
+                    已处理
                   </Badge>
                 ) : null}
               </CardTitle>
@@ -416,7 +488,7 @@ export default function InteractionDetailPage() {
                     id="name"
                     value={customerData.name}
                     onChange={(event) => handleInputChange("name", event.target.value)}
-                    disabled={isConfirmed}
+                    disabled={isResolved}
                     placeholder="客户姓名"
                   />
                 </div>
@@ -429,7 +501,7 @@ export default function InteractionDetailPage() {
                     id="phone"
                     value={customerData.phone}
                     onChange={(event) => handleInputChange("phone", event.target.value)}
-                    disabled={isConfirmed}
+                    disabled={isResolved}
                     placeholder="联系电话"
                   />
                 </div>
@@ -446,7 +518,7 @@ export default function InteractionDetailPage() {
                     type="number"
                     value={customerData.age}
                     onChange={(event) => handleInputChange("age", event.target.value)}
-                    disabled={isConfirmed}
+                    disabled={isResolved}
                     placeholder="年龄"
                   />
                 </div>
@@ -456,7 +528,7 @@ export default function InteractionDetailPage() {
                     id="gender"
                     value={customerData.gender}
                     onChange={(event) => handleInputChange("gender", event.target.value)}
-                    disabled={isConfirmed}
+                    disabled={isResolved}
                     placeholder="男 / 女"
                   />
                 </div>
@@ -474,7 +546,7 @@ export default function InteractionDetailPage() {
                     id="city"
                     value={customerData.city}
                     onChange={(event) => handleInputChange("city", event.target.value)}
-                    disabled={isConfirmed}
+                    disabled={isResolved}
                     placeholder="所在城市"
                   />
                 </div>
@@ -484,7 +556,7 @@ export default function InteractionDetailPage() {
                     id="district"
                     value={customerData.district}
                     onChange={(event) => handleInputChange("district", event.target.value)}
-                    disabled={isConfirmed}
+                    disabled={isResolved}
                     placeholder="所在区县"
                   />
                 </div>
@@ -502,7 +574,7 @@ export default function InteractionDetailPage() {
                   onValueChange={(value) =>
                     handleInputChange("interestLevel", value === "unset" ? "" : value)
                   }
-                  disabled={isConfirmed}
+                  disabled={isResolved}
                 >
                   <SelectTrigger id="interestLevel" className="w-full">
                     <SelectValue placeholder="请选择意向等级" />
@@ -527,7 +599,7 @@ export default function InteractionDetailPage() {
                   onValueChange={(value) =>
                     handleInputChange("budgetRange", value === "unset" ? "" : value)
                   }
-                  disabled={isConfirmed}
+                  disabled={isResolved}
                 >
                   <SelectTrigger id="budgetRange" className="w-full">
                     <SelectValue placeholder="请选择预算范围" />
@@ -549,7 +621,7 @@ export default function InteractionDetailPage() {
                   onValueChange={(value) =>
                     handleInputChange("decisionStage", value === "unset" ? "" : value)
                   }
-                  disabled={isConfirmed}
+                  disabled={isResolved}
                 >
                   <SelectTrigger id="decisionStage" className="w-full">
                     <SelectValue placeholder="请选择决策阶段" />
@@ -572,7 +644,7 @@ export default function InteractionDetailPage() {
                   id="healthCondition"
                   value={customerData.healthCondition}
                   onChange={(event) => handleInputChange("healthCondition", event.target.value)}
-                  disabled={isConfirmed}
+                  disabled={isResolved}
                   placeholder="健康情况补充说明"
                 />
               </div>
@@ -584,7 +656,7 @@ export default function InteractionDetailPage() {
                   onValueChange={(value) =>
                     handleInputChange("selfCareLevel", value === "unset" ? "" : value)
                   }
-                  disabled={isConfirmed}
+                  disabled={isResolved}
                 >
                   <SelectTrigger id="selfCareLevel" className="w-full">
                     <SelectValue placeholder="请选择自理能力" />
@@ -606,7 +678,7 @@ export default function InteractionDetailPage() {
                   onValueChange={(value) =>
                     handleInputChange("careNeedLevel", value === "unset" ? "" : value)
                   }
-                  disabled={isConfirmed}
+                  disabled={isResolved}
                 >
                   <SelectTrigger id="careNeedLevel" className="w-full">
                     <SelectValue placeholder="请选择护理需求" />
@@ -627,7 +699,7 @@ export default function InteractionDetailPage() {
                   id="triggerReason"
                   value={customerData.triggerReason}
                   onChange={(event) => handleInputChange("triggerReason", event.target.value)}
-                  disabled={isConfirmed}
+                  disabled={isResolved}
                   placeholder="咨询原因 / 触发因素"
                   rows={3}
                 />
@@ -639,7 +711,7 @@ export default function InteractionDetailPage() {
                   id="profileNotes"
                   value={customerData.profileNotes}
                   onChange={(event) => handleInputChange("profileNotes", event.target.value)}
-                  disabled={isConfirmed}
+                  disabled={isResolved}
                   placeholder="其他备注信息"
                   rows={4}
                 />
@@ -647,19 +719,101 @@ export default function InteractionDetailPage() {
             </CardContent>
           </Card>
 
-          {!isConfirmed ? (
-            <div className="flex justify-end gap-4">
-              <Link href="/interactions">
-                <Button variant="outline" disabled={isConfirming}>
-                  取消
+          <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <FileUp className="h-4 w-4" />
+                  附件
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {uploadedFiles.length > 0 ? (
+                  <div className="space-y-2">
+                    {uploadedFiles.map((file) => (
+                      <div
+                        key={file.id}
+                        className="flex items-center justify-between rounded-md bg-muted p-3 text-sm"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate font-medium">
+                            {file.originalName || "未命名附件"}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {file.mimeType || "未知类型"} · {file.status}
+                          </p>
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {file.fileSizeBytes
+                            ? `${(file.fileSizeBytes / 1024).toFixed(1)} KB`
+                            : "-"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">暂无附件</p>
+                )}
+
+                <div className="flex items-center gap-4">
+                  <Input
+                    type="file"
+                    accept="audio/*,image/*"
+                    onChange={handleFileUpload}
+                    disabled={isUploading || isResolved}
+                    className="flex-1"
+                  />
+                  <div className="flex items-center text-sm text-muted-foreground">
+                    {isUploading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        上传中
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="mr-2 h-4 w-4" />
+                        {isResolved ? "已处理" : "选择后自动上传"}
+                      </>
+                    )}
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  支持音频和图片文件，最大 50MB。
+                </p>
+              </CardContent>
+            </Card>
+
+            {!isResolved ? (
+              <div className="flex flex-wrap justify-end gap-4">
+                <Link href="/interactions">
+                  <Button variant="outline" disabled={isConfirming}>
+                    取消
+                  </Button>
+                </Link>
+                <Button
+                  variant="destructive"
+                  onClick={() => handleConfirm("rejected")}
+                  disabled={!canConfirm || isConfirming}
+                >
+                  拒绝
                 </Button>
-              </Link>
-              <Button onClick={handleConfirm} disabled={!canConfirm || isConfirming}>
-                {isConfirming ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                {canConfirm ? "确认并建档" : "等待处理完成"}
-              </Button>
-            </div>
-          ) : null}
+                <Button
+                  variant="secondary"
+                  onClick={() => handleConfirm("partially_confirmed")}
+                  disabled={!canConfirm || isConfirming}
+                >
+                  部分确认
+                </Button>
+                <Button
+                  onClick={() => handleConfirm("confirmed")}
+                  disabled={!canConfirm || isConfirming}
+                >
+                  {isConfirming ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  {canConfirm ? "确认并建档" : "等待处理完成"}
+                </Button>
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
     </div>

@@ -28,6 +28,8 @@ export async function POST(request: Request, { params }: RouteParams) {
 
     const result = await confirmInteraction(id, {
       confirmedBy: currentUser.id,
+      confirmationStatus: input.confirmationStatus,
+      rejectionReason: input.rejectionReason,
       customerData: input.customerData,
       createNewCustomer: input.createNewCustomer,
     })
@@ -71,7 +73,11 @@ export async function POST(request: Request, { params }: RouteParams) {
       )
     }
 
-    if (error instanceof Error && error.message === "Interaction already confirmed") {
+    if (
+      error instanceof Error &&
+      (error.message === "Interaction already confirmed" ||
+        error.message === "Interaction already handled")
+    ) {
       return NextResponse.json(
         {
           error: error.message,

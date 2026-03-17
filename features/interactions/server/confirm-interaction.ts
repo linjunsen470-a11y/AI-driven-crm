@@ -6,6 +6,8 @@ import { updateCustomerFromConfirmation } from "@/features/customers/server/upda
 
 export interface ConfirmInteractionInput {
   confirmedBy: string
+  confirmationStatus?: "confirmed" | "partially_confirmed" | "rejected"
+  rejectionReason?: string
   customerData?: {
     name?: string
     phone?: string
@@ -38,12 +40,44 @@ export async function confirmInteraction(
     throw new Error("Interaction not found")
   }
 
-  if (interaction.confirmationStatus === ConfirmationStatus.confirmed) {
-    throw new Error("Interaction already confirmed")
+  if (interaction.confirmationStatus !== ConfirmationStatus.pending) {
+    throw new Error("Interaction already handled")
   }
 
   if (interaction.processingStatus !== ProcessingStatus.completed) {
     throw new Error("Interaction is not ready for confirmation")
+  }
+
+  const targetStatus = (() => {
+    switch (input.confirmationStatus) {
+      case "rejected":
+        return ConfirmationStatus.rejected
+      case "partially_confirmed":
+        return ConfirmationStatus.partially_confirmed
+      case "confirmed":
+      default:
+        return ConfirmationStatus.confirmed
+    }
+  })()
+
+  if (targetStatus === ConfirmationStatus.rejected) {
+    return db.interaction.update({
+      where: { id: interactionId },
+      data: {
+        confirmationStatus: ConfirmationStatus.rejected,
+        confirmedAt: new Date(),
+        confirmedBy: input.confirmedBy,
+        errorMessage: input.rejectionReason ?? "Rejected by user",
+      },
+      select: {
+        id: true,
+        customerId: true,
+        confirmationStatus: true,
+        confirmedAt: true,
+        confirmedBy: true,
+        errorMessage: true,
+      },
+    })
   }
 
   let customerId = interaction.customerId
@@ -63,7 +97,7 @@ export async function confirmInteraction(
   const updatedInteraction = await db.interaction.update({
     where: { id: interactionId },
     data: {
-      confirmationStatus: ConfirmationStatus.confirmed,
+      confirmationStatus: targetStatus,
       confirmedAt: new Date(),
       confirmedBy: input.confirmedBy,
       customerId,
