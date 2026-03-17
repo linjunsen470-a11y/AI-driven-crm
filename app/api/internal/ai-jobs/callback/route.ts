@@ -41,6 +41,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Job not found" }, { status: 404 })
     }
 
+    if (job.status === "completed" || job.status === "failed" || job.status === "cancelled") {
+      return NextResponse.json({
+        success: true,
+        alreadyFinalized: true,
+        data: {
+          id: job.id,
+          status: job.status,
+        },
+      })
+    }
+
     if (status === "completed") {
       await aiJobService.completeJob(jobId, output ?? {})
     } else {

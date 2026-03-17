@@ -1,24 +1,17 @@
-import { FileCategory, FileStatus } from "@/generated/prisma/client"
 import { NextResponse } from "next/server"
 import { ZodError, z } from "zod"
 
-import { db } from "@/lib/db"
-import { storage } from "@/lib/storage"
+import { uploadFile } from "@/features/files/server/upload-file"
 
-const uploadMetaSchema = z.object({
-  interactionId: z.string().uuid().optional(),
-  customerId: z.string().uuid().optional(),
-})
-
-function getFileCategory(mimeType: string): FileCategory {
-  if (mimeType.startsWith("audio/")) {
-    return FileCategory.audio
-  }
-  if (mimeType.startsWith("image/")) {
-    return FileCategory.image
-  }
-  return FileCategory.document
-}
+const uploadMetaSchema = z
+  .object({
+    interactionId: z.string().uuid().optional(),
+    customerId: z.string().uuid().optional(),
+  })
+  .refine((value) => Boolean(value.interactionId || value.customerId), {
+    message: "Either interactionId or customerId is required.",
+    path: ["interactionId"],
+  })
 
 export async function POST(request: Request) {
   try {
@@ -37,44 +30,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 })
     }
 
-    const category = getFileCategory(file.type)
-    const buffer = Buffer.from(await file.arrayBuffer())
-
-    const uploadResult = await storage.upload(
-      {
-        buffer,
+    const fileRecord = await uploadFile({
+      interactionId: parsedMeta.interactionId,
+      customerId: parsedMeta.customerId,
+      file: {
+        buffer: Buffer.from(await file.arrayBuffer()),
         mimeType: file.type,
         originalName: file.name,
         size: file.size,
-      },
-      category === FileCategory.audio
-        ? "audio"
-        : category === FileCategory.image
-          ? "image"
-          : "document",
-    )
-
-    const fileRecord = await db.file.create({
-      data: {
-        interactionId: parsedMeta.interactionId ?? null,
-        customerId: parsedMeta.customerId ?? null,
-        category,
-        status: FileStatus.uploaded,
-        storageBucket: uploadResult.storageBucket,
-        storagePath: uploadResult.storagePath,
-        originalName: file.name,
-        mimeType: file.type,
-        fileSizeBytes: file.size,
-        sha256: uploadResult.sha256,
-      },
-      select: {
-        id: true,
-        category: true,
-        status: true,
-        originalName: true,
-        mimeType: true,
-        fileSizeBytes: true,
-        createdAt: true,
       },
     })
 
@@ -92,7 +55,11 @@ export async function POST(request: Request) {
 
     if (
       error instanceof Error &&
-      (error.message.startsWith("Invalid ") || error.message.startsWith("File size exceeds"))
+      (error.message.startsWith("Invalid ") ||
+        error.message.startsWith("File size exceeds") ||
+        error.message === "Interaction not found" ||
+        error.message === "Customer not found" ||
+        error.message === "Interaction and customer do not match")
     ) {
       return NextResponse.json(
         {

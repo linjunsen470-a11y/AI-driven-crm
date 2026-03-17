@@ -13,6 +13,8 @@ export interface ListCustomersFilters {
 
 export async function getCustomers(filters: ListCustomersFilters = {}) {
   const { status, interestLevel, search, ownerId, limit = 50, offset = 0 } = filters
+  const safeLimit = Math.min(Math.max(limit, 1), 100)
+  const safeOffset = Math.max(offset, 0)
 
   const where: Prisma.CustomerWhereInput = {}
 
@@ -41,8 +43,8 @@ export async function getCustomers(filters: ListCustomersFilters = {}) {
     db.customer.findMany({
       where,
       orderBy: [{ lastInteractionAt: "desc" }, { createdAt: "desc" }],
-      take: limit,
-      skip: offset,
+      take: safeLimit,
+      skip: safeOffset,
       select: {
         id: true,
         name: true,
@@ -67,7 +69,7 @@ export async function getCustomers(filters: ListCustomersFilters = {}) {
     db.customer.count({ where }),
   ])
 
-  return { customers, total, limit, offset }
+  return { customers, total, limit: safeLimit, offset: safeOffset }
 }
 
 export async function getCustomerById(id: string) {

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { ArrowLeft, Loader2 } from "lucide-react"
 import { useState } from "react"
 
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
@@ -29,15 +30,18 @@ export default function NewInteractionPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [contactMethod, setContactMethod] = useState("phone")
   const [sourceText, setSourceText] = useState("")
+  const [error, setError] = useState<string | null>(null)
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
     if (!sourceText.trim()) {
+      setError("请输入交互内容。")
       return
     }
 
     setIsSubmitting(true)
+    setError(null)
 
     try {
       const response = await fetch("/api/interactions", {
@@ -57,10 +61,12 @@ export default function NewInteractionPage() {
         throw new Error(error.error || "创建失败")
       }
 
-      router.push("/interactions")
+      const { data } = await response.json()
+
+      router.push(`/interactions/${data.id}`)
       router.refresh()
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : "创建失败，请重试")
+      setError(error instanceof Error ? error.message : "创建失败，请重试")
     } finally {
       setIsSubmitting(false)
     }
@@ -86,6 +92,12 @@ export default function NewInteractionPage() {
             <CardTitle>交互信息</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
+            {error ? (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            ) : null}
+
             <div className="space-y-2">
               <Label htmlFor="contactMethod">联系方式</Label>
               <Select value={contactMethod} onValueChange={setContactMethod}>

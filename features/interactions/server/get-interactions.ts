@@ -1,4 +1,4 @@
-import { ConfirmationStatus, ProcessingStatus } from "@/generated/prisma/client"
+import { ConfirmationStatus, Prisma, ProcessingStatus } from "@/generated/prisma/client"
 import { db } from "@/lib/db"
 
 export interface ListInteractionsFilters {
@@ -20,7 +20,9 @@ export async function getInteractions(filters: ListInteractionsFilters = {}) {
     offset = 0,
   } = filters
 
-  const where: Record<string, unknown> = {}
+  const where: Prisma.InteractionWhereInput = {}
+  const safeLimit = Math.min(Math.max(limit, 1), 100)
+  const safeOffset = Math.max(offset, 0)
 
   if (confirmationStatus) {
     where.confirmationStatus = confirmationStatus
@@ -39,8 +41,8 @@ export async function getInteractions(filters: ListInteractionsFilters = {}) {
     db.interaction.findMany({
       where,
       orderBy: { createdAt: "desc" },
-      take: limit,
-      skip: offset,
+      take: safeLimit,
+      skip: safeOffset,
       select: {
         id: true,
         customerId: true,
@@ -66,7 +68,7 @@ export async function getInteractions(filters: ListInteractionsFilters = {}) {
     db.interaction.count({ where }),
   ])
 
-  return { interactions, total, limit, offset }
+  return { interactions, total, limit: safeLimit, offset: safeOffset }
 }
 
 export async function getPendingInteractions(limit = 50, offset = 0) {

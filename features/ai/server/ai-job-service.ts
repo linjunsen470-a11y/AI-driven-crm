@@ -1,4 +1,4 @@
-import { AiJobStatus, AiJobType, ProcessingStatus } from "@/generated/prisma/client"
+import { AiJobStatus, AiJobType, Prisma, ProcessingStatus } from "@/generated/prisma/client"
 
 import { db } from "@/lib/db"
 
@@ -12,6 +12,14 @@ export interface CreateAiJobInput {
   targetId?: string
   inputPayload?: Record<string, unknown>
   ownerId?: string
+}
+
+export interface ListAiJobsFilters {
+  status?: AiJobStatus
+  jobType?: AiJobType
+  interactionId?: string
+  limit?: number
+  offset?: number
 }
 
 export class AiJobService {
@@ -87,6 +95,43 @@ export class AiJobService {
         interactionId: true,
         inputPayload: true,
         retryCount: true,
+      },
+    })
+  }
+
+  async listJobs(filters: ListAiJobsFilters = {}) {
+    const { status, jobType, interactionId, limit = 20, offset = 0 } = filters
+    const where: Prisma.AiJobWhereInput = {}
+    const safeLimit = Math.min(Math.max(limit, 1), 100)
+    const safeOffset = Math.max(offset, 0)
+
+    if (status) {
+      where.status = status
+    }
+
+    if (jobType) {
+      where.jobType = jobType
+    }
+
+    if (interactionId) {
+      where.interactionId = interactionId
+    }
+
+    return db.aiJob.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take: safeLimit,
+      skip: safeOffset,
+      select: {
+        id: true,
+        jobType: true,
+        status: true,
+        interactionId: true,
+        errorMessage: true,
+        retryCount: true,
+        createdAt: true,
+        startedAt: true,
+        finishedAt: true,
       },
     })
   }
