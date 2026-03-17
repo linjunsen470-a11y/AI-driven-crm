@@ -1,0 +1,714 @@
+generator client {
+  provider   = "prisma-client"
+  output     = "../generated/prisma"
+  engineType = "client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum CustomerStatus {
+  lead
+  active
+  converted
+  lost
+}
+
+enum RetirementStatus {
+  retired  @map("已退休")
+  upcoming @map("即将退休")
+  working  @map("未退休")
+  unknown  @map("未知")
+}
+
+enum DecisionMaker {
+  self     @map("本人")
+  spouse   @map("配偶")
+  children @map("子女")
+  shared   @map("共同决策")
+  unknown  @map("未知")
+}
+
+enum InterestLevel {
+  high    @map("高意向")
+  medium  @map("中意向")
+  low     @map("低意向")
+  unknown @map("未知")
+}
+
+enum BudgetRange {
+  below_5w       @map("5万以下")
+  between_5_10w  @map("5万-10万")
+  between_10_16w @map("10万-16万")
+  above_16w      @map("16万以上")
+  unknown        @map("未知")
+}
+
+enum CareNeedLevel {
+  none    @map("无护理需求")
+  light   @map("轻度护理")
+  medium  @map("中度护理")
+  heavy   @map("重度护理")
+  unknown @map("未知")
+}
+
+enum OccupationCategory {
+  public_sector @map("体制内")
+  white_collar  @map("企业白领")
+  management    @map("企业管理")
+  self_employed @map("个体经营")
+  professional  @map("专业人士")
+  blue_collar   @map("蓝领")
+  freelance     @map("自由职业")
+  other         @map("其他")
+  unknown       @map("未知")
+}
+
+enum PensionRange {
+  below_3000    @map("3000以下")
+  between_3_5k  @map("3000-5000")
+  between_5_8k  @map("5000-8000")
+  between_8_12k @map("8000-12000")
+  above_12k     @map("12000以上")
+  unknown       @map("未知")
+}
+
+enum HousingStatus {
+  owned_home    @map("自有住房")
+  with_children @map("与子女同住")
+  rented        @map("租房")
+  multiple_owned @map("多套房产")
+  facility      @map("机构居住")
+  other         @map("其他")
+  unknown       @map("未知")
+}
+
+enum LivingArrangement {
+  alone          @map("独居")
+  with_spouse    @map("与配偶同住")
+  with_children  @map("与子女同住")
+  with_caregiver @map("与保姆同住")
+  shared         @map("多人同住")
+  other          @map("其他")
+  unknown        @map("未知")
+}
+
+enum ChildrenSupportLevel {
+  strong   @map("强支持")
+  moderate @map("一般支持")
+  neutral  @map("中立")
+  opposed  @map("反对")
+  unknown  @map("未知")
+}
+
+enum DecisionStage {
+  aware       @map("初步了解")
+  comparing   @map("对比评估")
+  visit_ready @map("愿意参观")
+  trial_ready @map("考虑试住")
+  move_ready  @map("考虑入住")
+  unknown     @map("未知")
+}
+
+enum SelfCareLevel {
+  independent  @map("完全自理")
+  mostly_self  @map("基本自理")
+  partial_help @map("部分协助")
+  dependent    @map("高度依赖")
+  unknown      @map("未知")
+}
+
+enum SimilarProjectAwareness {
+  unaware     @map("不了解")
+  heard       @map("了解过")
+  visited     @map("参观过")
+  comparing   @map("对比中")
+  experienced @map("体验过")
+  unknown     @map("未知")
+}
+
+enum AnnualStayPreference {
+  within_1m      @map("1个月内")
+  m1_to_3        @map("1-3个月")
+  m3_to_6        @map("3-6个月")
+  half_year_plus @map("半年以上")
+  long_term      @map("长住")
+  undecided      @map("未确定")
+}
+
+enum ContactMethod {
+  phone
+  wechat
+  in_person
+  other
+}
+
+enum ContentType {
+  audio
+  image
+  text
+}
+
+enum ProcessingStatus {
+  pending
+  processing
+  completed
+  failed
+}
+
+enum ConfirmationStatus {
+  pending
+  confirmed
+  rejected
+  partially_confirmed
+}
+
+enum FileCategory {
+  audio
+  image
+  document
+  transcript
+  ocr
+  other
+}
+
+enum FileStatus {
+  uploaded
+  processing
+  ready
+  failed
+  archived
+}
+
+enum TaskType {
+  follow_up
+  send_material
+  arrange_visit
+  arrange_trial
+  call_back
+  confirm_budget
+  other
+}
+
+enum TaskStatus {
+  pending
+  in_progress
+  completed
+  cancelled
+}
+
+enum AiJobType {
+  transcription
+  ocr
+  summary
+  extraction
+  knowledge_ingestion
+  reminder_generation
+  chat_response
+  call_import
+  other
+}
+
+enum AiJobStatus {
+  queued
+  running
+  completed
+  failed
+  cancelled
+}
+
+enum KnowledgeSourceType {
+  upload
+  manual
+  url
+  import_batch
+  other
+}
+
+enum KnowledgeDocumentStatus {
+  pending
+  processing
+  ready
+  failed
+  archived
+}
+
+enum ChatSessionStatus {
+  open
+  archived
+  closed
+}
+
+enum ChatRole {
+  system
+  user
+  assistant
+  tool
+}
+
+enum ReminderRuleType {
+  inactivity
+  keyword_trigger
+  visit_followup
+  price_followup
+  high_intent
+  custom
+}
+
+enum ReminderRuleStatus {
+  active
+  inactive
+}
+
+enum RecommendationSourceType {
+  rule
+  ai
+  hybrid
+  manual
+}
+
+enum FollowupRecommendationStatus {
+  pending
+  viewed
+  accepted
+  dismissed
+  completed
+  expired
+}
+
+enum PhoneMatchMode {
+  exact
+  suffix
+  contains
+}
+
+enum CallDirection {
+  incoming
+  outgoing
+  unknown
+}
+
+enum CallImportBatchStatus {
+  uploaded
+  parsing
+  ready
+  completed
+  failed
+}
+
+enum CallImportItemStatus {
+  pending
+  ignored
+  queued
+  processed
+  failed
+  duplicate
+}
+
+model Customer {
+  id                       String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId                  String?                      @map("owner_id") @db.Uuid
+  name                     String?                      @db.VarChar(100)
+  phone                    String?                      @db.VarChar(30)
+  phoneNormalized          String?                      @map("phone_normalized") @db.VarChar(30)
+  city                     String?                      @db.VarChar(50)
+  district                 String?                      @db.VarChar(50)
+  gender                   String?                      @db.VarChar(20)
+  age                      Int?
+  birthYear                Int?                         @map("birth_year") @db.SmallInt
+  ageEstimated             Boolean                      @default(true) @map("age_estimated")
+  customerStatus           CustomerStatus               @default(active) @map("customer_status")
+  retirementStatus         RetirementStatus?            @map("retirement_status")
+  preRetirementOccupation  String?                      @map("pre_retirement_occupation") @db.VarChar(100)
+  occupationCategory       OccupationCategory?          @map("occupation_category")
+  pensionRange             PensionRange?                @map("pension_range")
+  paymentSource            Json                         @default("[]") @map("payment_source")
+  maritalStatus            String?                      @map("marital_status") @db.VarChar(20)
+  livingWithSpouse         Boolean?                     @map("living_with_spouse")
+  housingStatus            HousingStatus?               @map("housing_status")
+  livingArrangement        LivingArrangement?           @map("living_arrangement")
+  acceptsRelocation        Boolean?                     @map("accepts_relocation")
+  livesAlone               Boolean?                     @map("lives_alone")
+  homeownership            Boolean?                     @map("homeownership")
+  childrenCount            Int?                         @map("children_count")
+  childrenLocations        String?                      @map("children_locations")
+  childrenSupportLevel     ChildrenSupportLevel?        @map("children_support_level")
+  childrenFinancialSupport Boolean?                     @map("children_financial_support")
+  decisionMaker            DecisionMaker?               @map("decision_maker")
+  interestScore            Int?                         @map("interest_score")
+  interestLevel            InterestLevel?               @map("interest_level")
+  budgetRange              BudgetRange?                 @map("budget_range")
+  decisionStage            DecisionStage?               @map("decision_stage")
+  triggerReason            String?                      @map("trigger_reason")
+  similarProjectAwareness  SimilarProjectAwareness?     @map("similar_project_awareness")
+  similarProjectNotes      String?                      @map("similar_project_notes")
+  annualStayPreference     AnnualStayPreference?        @map("annual_stay_preference")
+  annualStayDurationText   String?                      @map("annual_stay_duration_text") @db.VarChar(100)
+  visitIntention           Boolean?                     @map("visit_intention")
+  visitTimeText            String?                      @map("visit_time_text") @db.VarChar(100)
+  visitDate                DateTime?                    @map("visit_date") @db.Date
+  checkinIntention         Boolean?                     @map("checkin_intention")
+  checkinTimeText          String?                      @map("checkin_time_text") @db.VarChar(100)
+  checkinDate              DateTime?                    @map("checkin_date") @db.Date
+  healthCondition          String?                      @map("health_condition")
+  selfCareLevel            SelfCareLevel?               @map("self_care_level")
+  careNeedLevel            CareNeedLevel?               @map("care_need_level")
+  livingRiskFlags          Json                         @default("[]") @map("living_risk_flags")
+  primaryNeeds             Json                         @default("[]") @map("primary_needs")
+  tags                     Json                         @default("[]")
+  profileNotes             String?                      @map("profile_notes")
+  lastInteractionAt        DateTime?                    @map("last_interaction_at") @db.Timestamptz(6)
+  createdAt                DateTime                     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime                     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  interactions             Interaction[]
+  files                    File[]
+  tasks                    Task[]
+  profileSnapshots         CustomerProfileSnapshot[]
+  chatSessions             ChatSession[]
+  followupRecommendations  FollowupRecommendation[]
+  reminderRules            ReminderRule[]
+
+  @@index([ownerId], map: "idx_customers_owner_id")
+  @@index([phoneNormalized], map: "idx_customers_phone_normalized")
+  @@index([lastInteractionAt(sort: Desc)], map: "idx_customers_last_interaction_at")
+  @@map("customers")
+}
+
+model Interaction {
+  id                   String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  customerId           String?                    @map("customer_id") @db.Uuid
+  ownerId              String?                    @map("owner_id") @db.Uuid
+  contactMethod        ContactMethod              @map("contact_method")
+  contentType          ContentType                @map("content_type")
+  storageBucket        String?                    @map("storage_bucket") @db.VarChar(100)
+  storagePath          String?                    @map("storage_path")
+  mimeType             String?                    @map("mime_type") @db.VarChar(100)
+  fileSizeBytes        Int?                       @map("file_size_bytes")
+  durationSeconds      Int?                       @map("duration_seconds")
+  sourceText           String?                    @map("source_text")
+  transcription        String?
+  processingStatus     ProcessingStatus           @default(pending) @map("processing_status")
+  errorMessage         String?                    @map("error_message")
+  processedAt          DateTime?                  @map("processed_at") @db.Timestamptz(6)
+  aiSummary            String?                    @map("ai_summary")
+  aiSalesSuggestion    String?                    @map("ai_sales_suggestion")
+  aiExtractedData      Json                       @default("{}") @map("ai_extracted_data")
+  aiConfidence         Json                       @default("{}") @map("ai_confidence")
+  extractionVersion    String?                    @map("extraction_version") @db.VarChar(50)
+  modelName            String?                    @map("model_name") @db.VarChar(100)
+  confirmationStatus   ConfirmationStatus         @default(pending) @map("confirmation_status")
+  confirmedAt          DateTime?                  @map("confirmed_at") @db.Timestamptz(6)
+  confirmedBy          String?                    @map("confirmed_by") @db.Uuid
+  createdAt            DateTime                   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime                   @updatedAt @map("updated_at") @db.Timestamptz(6)
+  customer             Customer?                  @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  files                File[]
+  aiJobs               AiJob[]
+  profileSnapshots     CustomerProfileSnapshot[]
+  tasks                Task[]
+  followupRecommendations FollowupRecommendation[]
+  callImportItems      CallImportItem[]
+
+  @@index([customerId], map: "idx_interactions_customer_id")
+  @@index([ownerId], map: "idx_interactions_owner_id")
+  @@index([processingStatus], map: "idx_interactions_processing_status")
+  @@index([confirmationStatus], map: "idx_interactions_confirmation_status")
+  @@index([createdAt(sort: Desc)], map: "idx_interactions_created_at")
+  @@map("interactions")
+}
+
+model File {
+  id                  String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId             String?            @map("owner_id") @db.Uuid
+  customerId          String?            @map("customer_id") @db.Uuid
+  interactionId       String?            @map("interaction_id") @db.Uuid
+  knowledgeDocumentId String?            @map("knowledge_document_id") @db.Uuid
+  category            FileCategory       @default(other)
+  status              FileStatus         @default(uploaded)
+  storageBucket       String?            @map("storage_bucket") @db.VarChar(100)
+  storagePath         String             @map("storage_path")
+  originalName        String?            @map("original_name") @db.VarChar(255)
+  mimeType            String?            @map("mime_type") @db.VarChar(100)
+  fileSizeBytes       Int?               @map("file_size_bytes")
+  sha256              String?            @db.VarChar(128)
+  durationSeconds     Int?               @map("duration_seconds")
+  meta                Json               @default("{}") @map("meta")
+  createdAt           DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  customer            Customer?          @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  interaction         Interaction?       @relation(fields: [interactionId], references: [id], onDelete: SetNull)
+  knowledgeDocument   KnowledgeDocument? @relation(fields: [knowledgeDocumentId], references: [id], onDelete: SetNull)
+
+  @@index([ownerId], map: "idx_files_owner_id")
+  @@index([customerId], map: "idx_files_customer_id")
+  @@index([interactionId], map: "idx_files_interaction_id")
+  @@index([knowledgeDocumentId], map: "idx_files_knowledge_document_id")
+  @@map("files")
+}
+
+model AiJob {
+  id                       String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId                  String?                   @map("owner_id") @db.Uuid
+  interactionId            String?                   @map("interaction_id") @db.Uuid
+  knowledgeDocumentId      String?                   @map("knowledge_document_id") @db.Uuid
+  callImportItemId         String?                   @map("call_import_item_id") @db.Uuid
+  followupRecommendationId String?                   @map("followup_recommendation_id") @db.Uuid
+  jobType                  AiJobType                 @map("job_type")
+  status                   AiJobStatus               @default(queued)
+  targetType               String?                   @map("target_type") @db.VarChar(50)
+  targetId                 String?                   @map("target_id") @db.Uuid
+  inputPayload             Json                      @default("{}") @map("input_payload")
+  outputPayload            Json                      @default("{}") @map("output_payload")
+  retryCount               Int                       @default(0) @map("retry_count")
+  errorMessage             String?                   @map("error_message")
+  startedAt                DateTime?                 @map("started_at") @db.Timestamptz(6)
+  finishedAt               DateTime?                 @map("finished_at") @db.Timestamptz(6)
+  createdAt                DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  interaction              Interaction?              @relation(fields: [interactionId], references: [id], onDelete: SetNull)
+  knowledgeDocument        KnowledgeDocument?        @relation(fields: [knowledgeDocumentId], references: [id], onDelete: SetNull)
+  callImportItem           CallImportItem?           @relation(fields: [callImportItemId], references: [id], onDelete: SetNull)
+  followupRecommendation   FollowupRecommendation?   @relation(fields: [followupRecommendationId], references: [id], onDelete: SetNull)
+
+  @@index([jobType, status], map: "idx_ai_jobs_type_status")
+  @@index([interactionId], map: "idx_ai_jobs_interaction_id")
+  @@index([knowledgeDocumentId], map: "idx_ai_jobs_knowledge_document_id")
+  @@index([callImportItemId], map: "idx_ai_jobs_call_import_item_id")
+  @@map("ai_jobs")
+}
+
+model CustomerProfileSnapshot {
+  id                String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId           String?      @map("owner_id") @db.Uuid
+  customerId        String?      @map("customer_id") @db.Uuid
+  interactionId     String?      @map("interaction_id") @db.Uuid
+  extractedData     Json         @default("{}") @map("extracted_data")
+  confidenceData    Json         @default("{}") @map("confidence_data")
+  mergedData        Json         @default("{}") @map("merged_data")
+  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  customer          Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  interaction       Interaction? @relation(fields: [interactionId], references: [id], onDelete: SetNull)
+
+  @@index([customerId], map: "idx_customer_profile_snapshots_customer_id")
+  @@index([interactionId], map: "idx_customer_profile_snapshots_interaction_id")
+  @@map("customer_profile_snapshots")
+}
+
+model Task {
+  id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId       String?     @map("owner_id") @db.Uuid
+  customerId    String      @map("customer_id") @db.Uuid
+  interactionId String?     @map("interaction_id") @db.Uuid
+  title         String      @db.VarChar(255)
+  description   String?
+  taskType      TaskType    @default(follow_up) @map("task_type")
+  status        TaskStatus  @default(pending)
+  source        String?     @db.VarChar(50)
+  dueAt         DateTime?   @map("due_at") @db.Timestamptz(6)
+  completedAt   DateTime?   @map("completed_at") @db.Timestamptz(6)
+  meta          Json        @default("{}") @map("meta")
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  customer      Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  interaction   Interaction? @relation(fields: [interactionId], references: [id], onDelete: SetNull)
+
+  @@index([ownerId, status], map: "idx_tasks_owner_status")
+  @@index([customerId], map: "idx_tasks_customer_id")
+  @@index([dueAt], map: "idx_tasks_due_at")
+  @@map("tasks")
+}
+
+model KnowledgeDocument {
+  id            String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId       String?                 @map("owner_id") @db.Uuid
+  title         String                  @db.VarChar(255)
+  category      String?                 @db.VarChar(100)
+  sourceType    KnowledgeSourceType     @default(upload) @map("source_type")
+  sourcePath    String?                 @map("source_path")
+  storageBucket String?                 @map("storage_bucket") @db.VarChar(100)
+  storagePath   String?                 @map("storage_path")
+  mimeType      String?                 @map("mime_type") @db.VarChar(100)
+  status        KnowledgeDocumentStatus @default(pending)
+  errorMessage  String?                 @map("error_message")
+  meta          Json                    @default("{}") @map("meta")
+  processedAt   DateTime?               @map("processed_at") @db.Timestamptz(6)
+  createdAt     DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
+  chunks        KnowledgeChunk[]
+  files         File[]
+  aiJobs        AiJob[]
+
+  @@index([ownerId, status], map: "idx_knowledge_documents_owner_status")
+  @@map("knowledge_documents")
+}
+
+model KnowledgeChunk {
+  id           String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  documentId   String            @map("document_id") @db.Uuid
+  chunkIndex   Int               @map("chunk_index")
+  chunkText    String            @map("chunk_text")
+  summary      String?
+  tokenCount   Int?              @map("token_count")
+  embeddingRef String?           @map("embedding_ref") @db.VarChar(255)
+  metadata     Json              @default("{}") @map("metadata")
+  createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  document     KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, chunkIndex], map: "uq_knowledge_chunks_document_chunk_index")
+  @@index([documentId], map: "idx_knowledge_chunks_document_id")
+  @@map("knowledge_chunks")
+}
+
+model ChatSession {
+  id            String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId       String?           @map("owner_id") @db.Uuid
+  customerId    String?           @map("customer_id") @db.Uuid
+  title         String?           @db.VarChar(255)
+  status        ChatSessionStatus @default(open)
+  meta          Json              @default("{}") @map("meta")
+  lastMessageAt DateTime?         @map("last_message_at") @db.Timestamptz(6)
+  createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  customer      Customer?         @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  messages      ChatMessage[]
+
+  @@index([ownerId], map: "idx_chat_sessions_owner_id")
+  @@index([customerId], map: "idx_chat_sessions_customer_id")
+  @@map("chat_sessions")
+}
+
+model ChatMessage {
+  id           String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionId    String      @map("session_id") @db.Uuid
+  role         ChatRole
+  content      String
+  citationsJson Json       @default("[]") @map("citations_json")
+  modelName    String?     @map("model_name") @db.VarChar(100)
+  tokenUsage   Json        @default("{}") @map("token_usage")
+  createdAt    DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  session      ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt], map: "idx_chat_messages_session_created_at")
+  @@map("chat_messages")
+}
+
+model ReminderRule {
+  id          String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId     String?            @map("owner_id") @db.Uuid
+  customerId  String?            @map("customer_id") @db.Uuid
+  name        String             @db.VarChar(255)
+  description String?
+  ruleType    ReminderRuleType   @default(custom) @map("rule_type")
+  status      ReminderRuleStatus @default(active)
+  conditions  Json               @default("{}") @map("conditions")
+  createdAt   DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  customer    Customer?          @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  recommendations FollowupRecommendation[]
+
+  @@index([ownerId, status], map: "idx_reminder_rules_owner_status")
+  @@index([customerId], map: "idx_reminder_rules_customer_id")
+  @@map("reminder_rules")
+}
+
+model FollowupRecommendation {
+  id                 String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId            String?                      @map("owner_id") @db.Uuid
+  customerId         String                       @map("customer_id") @db.Uuid
+  interactionId      String?                      @map("interaction_id") @db.Uuid
+  reminderRuleId     String?                      @map("reminder_rule_id") @db.Uuid
+  sourceType         RecommendationSourceType     @default(rule) @map("source_type")
+  status             FollowupRecommendationStatus @default(pending)
+  title              String?                      @db.VarChar(255)
+  recommendedAction  String                       @map("recommended_action")
+  reasonSummary      String?                      @map("reason_summary")
+  confidenceScore    Float?                       @map("confidence_score")
+  recommendedAt      DateTime                     @default(now()) @map("recommended_at") @db.Timestamptz(6)
+  dueAt              DateTime?                    @map("due_at") @db.Timestamptz(6)
+  payload            Json                         @default("{}") @map("payload")
+  createdAt          DateTime                     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime                     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  customer           Customer                     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  interaction        Interaction?                 @relation(fields: [interactionId], references: [id], onDelete: SetNull)
+  reminderRule       ReminderRule?                @relation(fields: [reminderRuleId], references: [id], onDelete: SetNull)
+  aiJobs             AiJob[]
+
+  @@index([ownerId, status], map: "idx_followup_recommendations_owner_status")
+  @@index([customerId], map: "idx_followup_recommendations_customer_id")
+  @@index([dueAt], map: "idx_followup_recommendations_due_at")
+  @@map("followup_recommendations")
+}
+
+model IgnoredPhone {
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId         String         @map("owner_id") @db.Uuid
+  phone           String         @db.VarChar(30)
+  phoneNormalized String         @map("phone_normalized") @db.VarChar(30)
+  label           String?        @db.VarChar(100)
+  matchMode       PhoneMatchMode @default(exact) @map("match_mode")
+  active          Boolean        @default(true)
+  notes           String?
+  createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  callImportItems CallImportItem[]
+
+  @@index([ownerId, phoneNormalized], map: "idx_ignored_phones_owner_phone")
+  @@index([ownerId, active], map: "idx_ignored_phones_owner_active")
+  @@map("ignored_phones")
+}
+
+model CallImportBatch {
+  id             String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId        String?               @map("owner_id") @db.Uuid
+  title          String?               @db.VarChar(255)
+  sourceLabel    String?               @map("source_label") @db.VarChar(100)
+  sourceDevice   String?               @map("source_device") @db.VarChar(100)
+  status         CallImportBatchStatus @default(uploaded)
+  totalFiles     Int                   @default(0) @map("total_files")
+  ignoredFiles   Int                   @default(0) @map("ignored_files")
+  queuedFiles    Int                   @default(0) @map("queued_files")
+  processedFiles Int                   @default(0) @map("processed_files")
+  failedFiles    Int                   @default(0) @map("failed_files")
+  meta           Json                  @default("{}") @map("meta")
+  createdAt      DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+  items          CallImportItem[]
+
+  @@index([ownerId, status], map: "idx_call_import_batches_owner_status")
+  @@map("call_import_batches")
+}
+
+model CallImportItem {
+  id                  String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  batchId             String               @map("batch_id") @db.Uuid
+  ownerId             String?              @map("owner_id") @db.Uuid
+  ignoredPhoneId      String?              @map("ignored_phone_id") @db.Uuid
+  linkedInteractionId String?              @map("linked_interaction_id") @db.Uuid
+  status              CallImportItemStatus @default(pending)
+  fileName            String               @map("file_name") @db.VarChar(255)
+  storageBucket       String?              @map("storage_bucket") @db.VarChar(100)
+  storagePath         String?              @map("storage_path")
+  mimeType            String?              @map("mime_type") @db.VarChar(100)
+  fileSizeBytes       Int?                 @map("file_size_bytes")
+  durationSeconds     Int?                 @map("duration_seconds")
+  phoneRaw            String?              @map("phone_raw") @db.VarChar(50)
+  phoneNormalized     String?              @map("phone_normalized") @db.VarChar(30)
+  callDirection       CallDirection        @default(unknown) @map("call_direction")
+  callAt              DateTime?            @map("call_at") @db.Timestamptz(6)
+  dedupeKey           String?              @map("dedupe_key") @db.VarChar(255)
+  ignoreReason        String?              @map("ignore_reason")
+  parsedMeta          Json                 @default("{}") @map("parsed_meta")
+  createdAt           DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+  batch               CallImportBatch      @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  ignoredPhone        IgnoredPhone?        @relation(fields: [ignoredPhoneId], references: [id], onDelete: SetNull)
+  linkedInteraction   Interaction?         @relation(fields: [linkedInteractionId], references: [id], onDelete: SetNull)
+  aiJobs              AiJob[]
+
+  @@index([batchId], map: "idx_call_import_items_batch_id")
+  @@index([status], map: "idx_call_import_items_status")
+  @@index([phoneNormalized], map: "idx_call_import_items_phone_normalized")
+  @@index([linkedInteractionId], map: "idx_call_import_items_linked_interaction_id")
+  @@map("call_import_items")
+}
