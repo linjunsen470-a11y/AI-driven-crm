@@ -54,6 +54,20 @@ export async function getInteraction(id: string) {
           createdAt: true,
         },
       },
+      aiJobs: {
+        orderBy: { createdAt: "desc" },
+        take: 5,
+        select: {
+          id: true,
+          jobType: true,
+          status: true,
+          errorMessage: true,
+          retryCount: true,
+          createdAt: true,
+          startedAt: true,
+          finishedAt: true,
+        },
+      },
     },
   })
 }

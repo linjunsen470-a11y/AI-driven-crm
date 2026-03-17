@@ -8,6 +8,7 @@ import { zhCN } from "date-fns/locale"
 import {
   AlertCircle,
   ArrowLeft,
+  Bot,
   Calendar,
   CheckCircle,
   FileUp,
@@ -15,6 +16,7 @@ import {
   Loader2,
   MapPin,
   Phone,
+  RefreshCw,
   Upload,
   User,
   Wallet,
@@ -58,6 +60,16 @@ interface InteractionDetail {
     mimeType: string | null
     fileSizeBytes: number | null
     createdAt: string
+  }>
+  aiJobs: Array<{
+    id: string
+    jobType: string
+    status: string
+    errorMessage: string | null
+    retryCount: number
+    createdAt: string
+    startedAt: string | null
+    finishedAt: string | null
   }>
   customer: {
     id: string
@@ -141,6 +153,33 @@ const careNeedLevelOptions = [
   { value: "unknown", label: "未知" },
 ]
 
+const processingStatusLabels: Record<string, string> = {
+  pending: "待处理",
+  processing: "处理中",
+  completed: "已完成",
+  failed: "处理失败",
+}
+
+const aiJobTypeLabels: Record<string, string> = {
+  transcription: "转录",
+  ocr: "OCR",
+  extraction: "提取",
+  summary: "摘要",
+  knowledge_ingestion: "知识入库",
+  reminder_generation: "提醒生成",
+  chat_response: "Chat 响应",
+  call_import: "通话导入",
+  other: "其他",
+}
+
+const aiJobStatusLabels: Record<string, string> = {
+  queued: "已排队",
+  running: "运行中",
+  completed: "已完成",
+  failed: "失败",
+  cancelled: "已取消",
+}
+
 const emptyCustomerData: EditableCustomerData = {
   name: "",
   phone: "",
@@ -176,55 +215,57 @@ export default function InteractionDetailPage() {
   const [isConfirming, setIsConfirming] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
+  const [isRequestingProcessing, setIsRequestingProcessing] = useState(false)
   const [uploadedFiles, setUploadedFiles] = useState<InteractionDetail["files"]>([])
   const id = params.id
+
+  async function refreshInteraction() {
+    if (!id) {
+      return
+    }
+
+    const response = await fetch(`/api/interactions/${id}`)
+
+    if (!response.ok) {
+      throw new Error("获取交互详情失败")
+    }
+
+    const { data } = await response.json()
+    setInteraction(data)
+    setUploadedFiles(data.files ?? [])
+
+    const extracted = data.aiExtractedData || {}
+
+    setCustomerData({
+      name: (extracted.name as string) || data.customer?.name || "",
+      phone: (extracted.phone as string) || data.customer?.phone || "",
+      city: (extracted.city as string) || data.customer?.city || "",
+      district: (extracted.district as string) || data.customer?.district || "",
+      age: extracted.age ? String(extracted.age) : "",
+      gender: (extracted.gender as string) || "",
+      interestLevel: (extracted.interestLevel as string) || data.customer?.interestLevel || "",
+      budgetRange: (extracted.budgetRange as string) || data.customer?.budgetRange || "",
+      decisionStage: (extracted.decisionStage as string) || data.customer?.decisionStage || "",
+      triggerReason: (extracted.triggerReason as string) || "",
+      healthCondition: (extracted.healthCondition as string) || "",
+      selfCareLevel: (extracted.selfCareLevel as string) || "",
+      careNeedLevel: (extracted.careNeedLevel as string) || "",
+      profileNotes: (extracted.profileNotes as string) || "",
+    })
+  }
 
   useEffect(() => {
     if (!id) {
       return
     }
 
-    async function fetchInteraction() {
-      try {
-        const response = await fetch(`/api/interactions/${id}`)
-
-        if (!response.ok) {
-          throw new Error("获取交互详情失败")
-        }
-
-        const { data } = await response.json()
-        setInteraction(data)
-        setUploadedFiles(data.files ?? [])
-
-        const extracted = data.aiExtractedData || {}
-
-        setCustomerData({
-          name: (extracted.name as string) || data.customer?.name || "",
-          phone: (extracted.phone as string) || data.customer?.phone || "",
-          city: (extracted.city as string) || data.customer?.city || "",
-          district: (extracted.district as string) || data.customer?.district || "",
-          age: extracted.age ? String(extracted.age) : "",
-          gender: (extracted.gender as string) || "",
-          interestLevel:
-            (extracted.interestLevel as string) || data.customer?.interestLevel || "",
-          budgetRange:
-            (extracted.budgetRange as string) || data.customer?.budgetRange || "",
-          decisionStage:
-            (extracted.decisionStage as string) || data.customer?.decisionStage || "",
-          triggerReason: (extracted.triggerReason as string) || "",
-          healthCondition: (extracted.healthCondition as string) || "",
-          selfCareLevel: (extracted.selfCareLevel as string) || "",
-          careNeedLevel: (extracted.careNeedLevel as string) || "",
-          profileNotes: (extracted.profileNotes as string) || "",
-        })
-      } catch (fetchError) {
+    refreshInteraction()
+      .catch((fetchError) => {
         setError(fetchError instanceof Error ? fetchError.message : "加载失败")
-      } finally {
+      })
+      .finally(() => {
         setIsLoading(false)
-      }
-    }
-
-    fetchInteraction()
+      })
   }, [id])
 
   function handleInputChange<K extends keyof EditableCustomerData>(
@@ -337,11 +378,51 @@ export default function InteractionDetailPage() {
 
       const { data } = await response.json()
       setUploadedFiles((previous) => [data, ...previous])
+      await refreshInteraction()
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : "上传失败")
     } finally {
       setIsUploading(false)
       event.target.value = ""
+    }
+  }
+
+  async function handleRequestProcessing(
+    mode: "enqueue" | "mock",
+    fileId?: string,
+  ) {
+    if (!id) {
+      return
+    }
+
+    setIsRequestingProcessing(true)
+    setError(null)
+
+    try {
+      const response = await fetch(`/api/interactions/${id}/process`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          mode,
+          fileId,
+        }),
+      })
+
+      const payload = await response.json()
+
+      if (!response.ok) {
+        throw new Error(payload.error || "创建处理任务失败")
+      }
+
+      await refreshInteraction()
+    } catch (processingError) {
+      setError(
+        processingError instanceof Error ? processingError.message : "创建处理任务失败",
+      )
+    } finally {
+      setIsRequestingProcessing(false)
     }
   }
 
@@ -393,25 +474,40 @@ export default function InteractionDetailPage() {
             </p>
           </div>
         </div>
-        <Badge
-          variant={
-            interaction.confirmationStatus === "confirmed"
-              ? "default"
+        <div className="flex items-center gap-2">
+          <Badge
+            variant={
+              interaction.processingStatus === "completed"
+                ? "default"
+                : interaction.processingStatus === "failed"
+                  ? "destructive"
+                  : interaction.processingStatus === "processing"
+                    ? "secondary"
+                    : "warning"
+            }
+          >
+            {processingStatusLabels[interaction.processingStatus] || interaction.processingStatus}
+          </Badge>
+          <Badge
+            variant={
+              interaction.confirmationStatus === "confirmed"
+                ? "default"
+                : interaction.confirmationStatus === "rejected"
+                  ? "destructive"
+                  : interaction.confirmationStatus === "partially_confirmed"
+                    ? "outline"
+                    : "secondary"
+            }
+          >
+            {interaction.confirmationStatus === "confirmed"
+              ? "已确认"
               : interaction.confirmationStatus === "rejected"
-                ? "destructive"
+                ? "已拒绝"
                 : interaction.confirmationStatus === "partially_confirmed"
-                  ? "outline"
-                  : "secondary"
-          }
-        >
-          {interaction.confirmationStatus === "confirmed"
-            ? "已确认"
-            : interaction.confirmationStatus === "rejected"
-              ? "已拒绝"
-              : interaction.confirmationStatus === "partially_confirmed"
-                ? "部分确认"
-                : "待确认"}
-        </Badge>
+                  ? "部分确认"
+                  : "待确认"}
+          </Badge>
+        </div>
       </div>
 
       {error ? (
@@ -722,6 +818,69 @@ export default function InteractionDetailPage() {
           <div className="space-y-4">
             <Card>
               <CardHeader>
+                <CardTitle className="flex items-center justify-between gap-2 text-base">
+                  <span className="flex items-center gap-2">
+                    <Bot className="h-4 w-4" />
+                    AI 任务
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      refreshInteraction().catch(() => {
+                        setError("刷新 AI 任务失败。")
+                      })
+                    }}
+                    disabled={isRequestingProcessing}
+                  >
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    刷新
+                  </Button>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {interaction.aiJobs.length > 0 ? (
+                  interaction.aiJobs.map((job) => (
+                    <div key={job.id} className="rounded-md border p-3 text-sm">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium">
+                          {aiJobTypeLabels[job.jobType] || job.jobType}
+                        </span>
+                        <Badge
+                          variant={
+                            job.status === "completed"
+                              ? "default"
+                              : job.status === "failed"
+                                ? "destructive"
+                                : job.status === "running"
+                                  ? "secondary"
+                                  : "outline"
+                          }
+                        >
+                          {aiJobStatusLabels[job.status] || job.status}
+                        </Badge>
+                      </div>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        创建于{" "}
+                        {format(new Date(job.createdAt), "yyyy-MM-dd HH:mm", {
+                          locale: zhCN,
+                        })}
+                        {" · "}重试 {job.retryCount} 次
+                      </p>
+                      {job.errorMessage ? (
+                        <p className="mt-2 text-xs text-destructive">{job.errorMessage}</p>
+                      ) : null}
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground">当前还没有 AI 任务。</p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
                   <FileUp className="h-4 w-4" />
                   附件
@@ -740,14 +899,38 @@ export default function InteractionDetailPage() {
                             {file.originalName || "未命名附件"}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {file.mimeType || "未知类型"} · {file.status}
+                            {file.mimeType || "未知类型"} · {file.category} · {file.status}
                           </p>
                         </div>
-                        <span className="text-xs text-muted-foreground">
-                          {file.fileSizeBytes
-                            ? `${(file.fileSizeBytes / 1024).toFixed(1)} KB`
-                            : "-"}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          {(file.category === "audio" || file.category === "image") && !isResolved ? (
+                            <>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleRequestProcessing("enqueue", file.id)}
+                                disabled={isRequestingProcessing}
+                              >
+                                创建任务
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => handleRequestProcessing("mock", file.id)}
+                                disabled={isRequestingProcessing}
+                              >
+                                模拟处理
+                              </Button>
+                            </>
+                          ) : null}
+                          <span className="text-xs text-muted-foreground">
+                            {file.fileSizeBytes
+                              ? `${(file.fileSizeBytes / 1024).toFixed(1)} KB`
+                              : "-"}
+                          </span>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -760,14 +943,14 @@ export default function InteractionDetailPage() {
                     type="file"
                     accept="audio/*,image/*"
                     onChange={handleFileUpload}
-                    disabled={isUploading || isResolved}
+                    disabled={isUploading || isRequestingProcessing || isResolved}
                     className="flex-1"
                   />
                   <div className="flex items-center text-sm text-muted-foreground">
-                    {isUploading ? (
+                    {isUploading || isRequestingProcessing ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        上传中
+                        {isUploading ? "上传中" : "处理中"}
                       </>
                     ) : (
                       <>

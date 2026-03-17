@@ -1,4 +1,10 @@
-import { AiJobStatus, AiJobType, Prisma, ProcessingStatus } from "@/generated/prisma/client"
+import {
+  AiJobStatus,
+  AiJobType,
+  FileStatus,
+  Prisma,
+  ProcessingStatus,
+} from "@/generated/prisma/client"
 
 import { db } from "@/lib/db"
 
@@ -20,6 +26,15 @@ export interface ListAiJobsFilters {
   interactionId?: string
   limit?: number
   offset?: number
+}
+
+function getInputPayloadValue(payload: Prisma.JsonValue, key: string) {
+  if (typeof payload !== "object" || payload === null || Array.isArray(payload)) {
+    return undefined
+  }
+
+  const value = (payload as Prisma.JsonObject)[key]
+  return typeof value === "string" ? value : undefined
 }
 
 export class AiJobService {
@@ -50,7 +65,10 @@ export class AiJobService {
     if (input.interactionId) {
       await db.interaction.update({
         where: { id: input.interactionId },
-        data: { processingStatus: ProcessingStatus.pending },
+        data: {
+          processingStatus: ProcessingStatus.pending,
+          errorMessage: null,
+        },
       })
     }
 
@@ -147,6 +165,102 @@ export class AiJobService {
     })
   }
 
+  async markJobRunning(jobId: string) {
+    const existingJob = await db.aiJob.findUnique({
+      where: { id: jobId },
+      select: {
+        id: true,
+        status: true,
+      },
+    })
+
+    if (!existingJob) {
+      throw new Error("Job not found")
+    }
+
+    if (existingJob.status === AiJobStatus.completed || existingJob.status === AiJobStatus.cancelled) {
+      throw new Error("Job is already finalized")
+    }
+
+    const updateData: Prisma.AiJobUpdateInput = {
+      status: AiJobStatus.running,
+      startedAt: new Date(),
+      finishedAt: null,
+      errorMessage: null,
+    }
+
+    if (existingJob.status === AiJobStatus.failed) {
+      updateData.retryCount = {
+        increment: 1,
+      }
+    }
+
+    const job = await db.aiJob.update({
+      where: { id: jobId },
+      data: updateData,
+      select: {
+        id: true,
+        jobType: true,
+        status: true,
+        interactionId: true,
+        inputPayload: true,
+        outputPayload: true,
+        errorMessage: true,
+        retryCount: true,
+        startedAt: true,
+        finishedAt: true,
+        createdAt: true,
+      },
+    })
+
+    if (job.interactionId) {
+      await db.interaction.update({
+        where: { id: job.interactionId },
+        data: {
+          processingStatus: ProcessingStatus.processing,
+          errorMessage: null,
+        },
+      })
+    }
+
+    const fileId = getInputPayloadValue(job.inputPayload, "fileId")
+
+    if (fileId) {
+      await db.file.update({
+        where: { id: fileId },
+        data: {
+          status: FileStatus.processing,
+        },
+      })
+    }
+
+    return job
+  }
+
+  async claimNextJob(jobType?: AiJobType) {
+    const candidate = await db.aiJob.findFirst({
+      where: {
+        status: {
+          in: [AiJobStatus.queued, AiJobStatus.failed],
+        },
+        retryCount: {
+          lt: 3,
+        },
+        ...(jobType ? { jobType } : {}),
+      },
+      orderBy: [{ createdAt: "asc" }],
+      select: {
+        id: true,
+      },
+    })
+
+    if (!candidate) {
+      return null
+    }
+
+    return this.markJobRunning(candidate.id)
+  }
+
   async completeJob(jobId: string, outputPayload: Record<string, unknown>) {
     const job = await db.aiJob.update({
       where: { id: jobId },
@@ -161,6 +275,15 @@ export class AiJobService {
     })
 
     if (!job.interactionId || !job.interaction) {
+      const fileId = getInputPayloadValue(job.inputPayload, "fileId")
+      if (fileId) {
+        await db.file.update({
+          where: { id: fileId },
+          data: {
+            status: FileStatus.ready,
+          },
+        })
+      }
       return job
     }
 
@@ -232,6 +355,17 @@ export class AiJobService {
         break
     }
 
+    const fileId = getInputPayloadValue(job.inputPayload, "fileId")
+
+    if (fileId) {
+      await db.file.update({
+        where: { id: fileId },
+        data: {
+          status: FileStatus.ready,
+        },
+      })
+    }
+
     return job
   }
 
@@ -254,6 +388,17 @@ export class AiJobService {
         data: {
           processingStatus: ProcessingStatus.failed,
           errorMessage,
+        },
+      })
+    }
+
+    const fileId = getInputPayloadValue(job.inputPayload, "fileId")
+
+    if (fileId) {
+      await db.file.update({
+        where: { id: fileId },
+        data: {
+          status: FileStatus.failed,
         },
       })
     }
