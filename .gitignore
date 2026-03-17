@@ -39,7 +39,6 @@ next-env.d.ts
 # environment variables
 .env
 !.env.example
-!.env.agent.example
 
-#kimi files
+# remote agent output
 /Kimi_Agent_Code

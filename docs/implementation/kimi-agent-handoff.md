@@ -1,8 +1,13 @@
 # Kimi Agent Handoff Guide
 
-This document is the repo-native version of the remote implementation handoff plan.
+This document is the repo-native handoff plan for remote implementation work.
 
-Its purpose is to help a human owner package the right context for Kimi, keep priorities stable, and reject low-quality agent output.
+It reflects the current reality of the project:
+
+- Slice 1 is already the baseline
+- Supabase is connected
+- the app can already run with `pnpm dev`
+- Kimi should continue from a clean remote `main`, not from a dirty local worktree
 
 ---
 
@@ -16,11 +21,18 @@ Required implementation order:
 2. Slice 2 + Slice 3
 3. Slice 4 + Slice 5
 
-See `docs/implementation/mvp-slices.md` for the detailed slice definitions.
+See `docs/implementation/mvp-slices.md` for the slice definitions.
+
+Current recommended next round:
+
+- `Slice 2 + Slice 3`
+- stronger confirmation form
+- single-file upload
+- `files` / `interactions` linkage
 
 ---
 
-## 2. Context Priority
+## 2. Repository Truth And Baseline
 
 When materials conflict, Kimi must use this order:
 
@@ -41,14 +53,77 @@ Explicit rules Kimi must follow:
 - use `AiJob` as the unified async job abstraction
 - do not treat historical planning docs as higher priority than repo truth
 - first runnable loop is `text interaction -> AI extraction -> salesperson confirmation -> customer update`
+- do not base work on a local dirty worktree or ad hoc exported folders
+
+Current baseline facts:
+
+- Supabase is connected and the app is already runnable
+- Slice 1 is the implementation starting point
+- remote `main` should become the only truth source before Kimi starts the next round
 
 ---
 
-## 3. Upload Pack
+## 3. Git Flow
+
+### Human owner flow
+
+Before delegating the next round:
+
+1. merge the current Slice 1 baseline into `main`
+2. push remote `main`
+3. ensure unrelated local noise is not part of that merge
+
+Important:
+
+- do not ask Kimi to build on top of an unpushed local branch
+- do not let Kimi inherit `.agent`, `.agents`, `.claude`, or `Kimi_Agent_Code` noise
+
+### Kimi flow
+
+Kimi must use this sequence:
+
+1. `git clone`
+2. `git checkout -b feat/slice2-3-confirmation-upload origin/main`
+3. implement only the requested slice
+4. run validation
+5. `git push -u origin feat/slice2-3-confirmation-upload`
+
+Kimi must:
+
+- never work directly on `main`
+- never rewrite history
+- only deliver a feature branch unless explicitly asked to open a PR
+
+---
+
+## 4. Access And Secrets
+
+Share `.env.example`, not your real `.env`.
+
+Rules:
+
+- agents may only reference variable names
+- agents must never fabricate real secrets
+- agents must never submit a real `.env`
+- if new required env vars are added, `.env.example` must be updated in the same delivery
+- only `NEXT_PUBLIC_*` vars may be used in browser code
+- all other secrets stay server-side
+
+GitHub access guidance:
+
+- use a short-lived fine-grained token
+- scope it to this repo only
+- minimum recommended permission is `Contents: Read and write`
+- add `Pull requests: Read and write` only if you want Kimi to open PRs directly
+- never place the token in prompt text, docs, code, or `.env.example`
+
+---
+
+## 5. Upload Pack
 
 ### Best package
 
-Upload the full repo, not docs alone.
+Give Kimi the full repo from remote `main`, not docs alone.
 
 Minimum recommended package:
 
@@ -99,31 +174,14 @@ Do not include these by default unless you want broad architecture rework:
 - `docs/AI-Driven-CRM-架构分析与开发建议.md`
 - `docs/design.md`
 - `docs/最佳文件结构建议.md`
-
-Reason:
-
-- they are useful background
-- but they are lower-priority than current implementation constraints
-- they can easily dilute the main delivery path
+- `.agent/`
+- `.agents/`
+- `.claude/`
+- `Kimi_Agent_Code/`
 
 ---
 
-## 4. AI-safe Environment Contract
-
-Share `.env.example`, not your real `.env`.
-
-Rules:
-
-- agents may only reference variable names
-- agents must never fabricate real secrets
-- agents must never submit a real `.env`
-- if new required env vars are added, `.env.example` must be updated in the same delivery
-- only `NEXT_PUBLIC_*` vars may be used in browser code
-- all other secrets stay server-side
-
----
-
-## 5. Required Deliverables From Kimi
+## 6. Required Deliverables From Kimi
 
 Every slice delivery must contain:
 
@@ -134,16 +192,18 @@ Every slice delivery must contain:
 - a remaining issues list
 - doc updates if interfaces, prompts, env vars, or contracts changed
 
-Acceptable code delivery formats:
+Preferred delivery format for this project:
 
-- branch
+- feature branch pushed to remote
+
+Also acceptable when needed:
+
 - PR
 - patch bundle
-- full repo snapshot
 
 ---
 
-## 6. Reject These Delivery Patterns
+## 7. Reject These Delivery Patterns
 
 Reject the delivery if Kimi:
 
@@ -153,10 +213,11 @@ Reject the delivery if Kimi:
 - ignores `AGENTS.md`
 - writes secrets into code or docs
 - implements the whole roadmap in one uncontrolled batch
+- changes unrelated local tooling noise or cleanup files outside the requested slice
 
 ---
 
-## 7. Slice Targets
+## 8. Slice Targets
 
 ### Round 1
 
@@ -169,6 +230,7 @@ Reject the delivery if Kimi:
 
 - `Slice 2 + Slice 3`
 - stronger confirmation form
+- explicit AI-vs-confirmed editing flow
 - file upload
 - `files` / `interactions` linkage
 
@@ -180,7 +242,7 @@ Reject the delivery if Kimi:
 
 ---
 
-## 8. Human Review Checklist
+## 9. Human Review Checklist
 
 Before accepting a Kimi delivery, verify:
 
@@ -190,9 +252,10 @@ Before accepting a Kimi delivery, verify:
 - it does not add runtime prompt text only in docs
 - it updates env and docs when required
 - it explains any remaining blockers clearly
+- it is based on clean remote `main`
 
 ---
 
-## 9. One-line Rule
+## 10. One-line Rule
 
 Give Kimi enough truth to implement one slice well, not enough ambiguity to redesign the project by accident.

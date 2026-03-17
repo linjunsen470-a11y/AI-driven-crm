@@ -27,6 +27,7 @@ If you want to delegate implementation to an external coding agent such as Kimi,
 
 - `docs/implementation/kimi-agent-handoff.md`
 - `docs/implementation/kimi-agent-kickoff-prompt.md`
+- `docs/implementation/kimi-agent-slice2-3-prompt.md`
 - `.env.example`
 
 ## Current Delivery Strategy

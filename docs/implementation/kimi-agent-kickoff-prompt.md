@@ -1,6 +1,10 @@
 # Kimi Agent Kickoff Prompt
 
-Use this as the initial instruction when delegating work to Kimi.
+Use this as the generic initial instruction when delegating work to Kimi.
+
+For the current recommended round after Slice 1 is merged into remote `main`, use:
+
+- `docs/implementation/kimi-agent-slice2-3-prompt.md`
 
 ```text
 You are implementing against an existing repository. Follow repository truth, not your own defaults.

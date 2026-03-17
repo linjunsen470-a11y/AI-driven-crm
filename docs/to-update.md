@@ -38,6 +38,7 @@
 
 - `docs/integrations/transcription-flow.md`
 - `docs/implementation/mvp-slices.md`
+- `docs/implementation/kimi-agent-slice2-3-prompt.md`
 
 后续如果需要更细的契约文件，可以再补：
 
@@ -114,6 +115,7 @@
 - `docs/implementation/mvp-slices.md`
 - `docs/implementation/kimi-agent-handoff.md`
 - `docs/implementation/kimi-agent-kickoff-prompt.md`
+- `docs/implementation/kimi-agent-slice2-3-prompt.md`
 
 这类文档回答“先做什么、接口怎么收敛、如何分切片推进”。
 
