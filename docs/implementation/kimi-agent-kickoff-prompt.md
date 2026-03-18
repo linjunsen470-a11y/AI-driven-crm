@@ -2,7 +2,11 @@
 
 Use this as the generic initial instruction when delegating work to Kimi.
 
-For the current recommended round after Slice 1 is merged into remote `main`, use:
+For the current recommended round after the stabilized baseline is merged into remote `main`, use:
+
+- `docs/implementation/kimi-agent-handoff.md`
+
+Historical slice-specific reference:
 
 - `docs/implementation/kimi-agent-slice2-3-prompt.md`
 
@@ -29,7 +33,8 @@ Mandatory rules:
 - If a runtime prompt is used by code, move or duplicate it into prompts/.
 - If you add a required environment variable, update .env.example.
 - Do not expose real secrets. Only use placeholder env variable names.
-- First runnable loop is text interaction -> AI extraction -> salesperson confirmation -> customer update.
+- Keep CRM as the system of record for confirmed business data.
+- Do not rebuild completed slices unless the task explicitly asks for refactor or bug fixing.
 
 Working mode:
 - Implement only the requested slice.
@@ -40,7 +45,7 @@ Working mode:
 Required delivery format:
 - code changes
 - concise change summary
-- validation report including pnpm typecheck and pnpm lint, plus pnpm build if relevant
+- validation report including npm run typecheck and npm run lint, plus npm run build if relevant
 - manual acceptance steps
 - remaining issues / blockers
 
@@ -49,6 +54,7 @@ Reject conditions for your own output:
 - unverified claims
 - undocumented schema changes
 - hardcoded secrets
+- redesign of already-landed flows without clear necessity
 
 Current request:
 Implement only the slice I specify next. If repository materials conflict, follow the highest-priority file.

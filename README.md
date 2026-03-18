@@ -7,8 +7,35 @@ AI-driven CRM for a senior living / wellness community sales team.
 - Next.js App Router
 - shadcn/ui
 - Prisma 7 + PostgreSQL
-- planned n8n async workflows
-- local filesystem / MinIO style object storage
+- local filesystem / MinIO-style object storage
+- unified `AiJob` async contract inside CRM
+- `n8n` baseline workflow assets under `infra/n8n`
+
+## Current Delivery Status
+
+As of the current baseline:
+
+- Slice 0 is complete
+- Slice 1 is complete
+- Slice 2 is complete
+- Slice 3 is complete
+- Slice 4 CRM-side contract is in place
+- Slice 5 Batch 1 is in place, but real provider integration is not finished yet
+
+What already exists in code:
+
+- text interaction creation and pending queue
+- interaction confirmation and customer writeback
+- single-file upload and `files` / `interactions` linkage
+- unified `AiJob` routes, callback handling, and local mock worker
+- CRM -> `n8n` dispatch, internal `start` route, and workflow template
+- runtime prompts under `prompts/`
+
+Validation status of the current baseline:
+
+- `npm run typecheck` passes
+- `npm run lint` passes
+- `npm run build` passes
 
 ## Source Of Truth
 
@@ -27,21 +54,20 @@ If you want to delegate implementation to an external coding agent such as Kimi,
 
 - `docs/implementation/kimi-agent-handoff.md`
 - `docs/implementation/kimi-agent-kickoff-prompt.md`
-- `docs/implementation/kimi-agent-slice2-3-prompt.md`
 - `.env.example`
+
+Historical reference only:
+
+- `docs/implementation/kimi-agent-slice2-3-prompt.md`
 
 ## Current Delivery Strategy
 
-The project should be built in slices, not as one giant batch.
+The project should still be built in slices, not as one giant batch.
 
-Recommended order:
+Recommended next order:
 
-1. text interaction MVP flow
-2. confirmation form
-3. upload + processing states
-4. customers / interactions APIs
-5. runtime prompts
-6. n8n integration
-7. knowledge base
-8. reminders
-9. AI chat
+1. complete Slice 5 `n8n` integration on top of the existing `AiJob` contract
+2. build Phase 2 CRM-side modules that do not depend on `n8n`
+3. add knowledge base and AI chat shells
+4. add reminders, ignored phones, and call import state flows
+5. connect real providers and larger async workflows incrementally

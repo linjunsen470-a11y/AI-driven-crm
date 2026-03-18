@@ -4,10 +4,12 @@ This document is the repo-native handoff plan for remote implementation work.
 
 It reflects the current reality of the project:
 
-- Slice 1 is already the baseline
-- Supabase is connected
-- the app can already run with `pnpm dev`
-- Kimi should continue from a clean remote `main`, not from a dirty local worktree
+- Slice 0 to Slice 3 are already implemented
+- CRM-side Slice 4 contract is already landed
+- `AiJob` is the unified async abstraction
+- runtime prompts now live under `prompts/`
+- the current baseline passes `npm run typecheck`, `npm run lint`, and `npm run build`
+- `n8n` Batch 1 baseline already exists and should be extended instead of replaced
 
 ---
 
@@ -15,20 +17,27 @@ It reflects the current reality of the project:
 
 Use `incremental slice delivery`, not a single giant build request.
 
-Required implementation order:
+Current recommended implementation order from the present baseline:
 
-1. Slice 0 + Slice 1
-2. Slice 2 + Slice 3
-3. Slice 4 + Slice 5
+1. Slice 5: `n8n` integration on top of the existing `AiJob` flow
+2. Phase 2 CRM-side modules that are not blocked by `n8n`
+3. Slice 6 style expansion for OCR / summary / extraction unification
 
-See `docs/implementation/mvp-slices.md` for the slice definitions.
+See `docs/implementation/mvp-slices.md` for the slice definitions and current status.
 
 Current recommended next round:
 
-- `Slice 2 + Slice 3`
-- stronger confirmation form
-- single-file upload
-- `files` / `interactions` linkage
+- `Slice 5`
+- keep CRM as the system of record
+- reuse the existing callback route and job payload contract
+- reuse the existing `/api/internal/ai-jobs/start` route
+- do not rebuild completed Slice 2 / Slice 3 functionality
+
+Optional parallel round if `n8n` work is intentionally deferred:
+
+- knowledge base CRUD shell
+- AI chat session/message shell
+- reminders / ignored phones / call import CRM-side status flows
 
 ---
 
@@ -52,14 +61,19 @@ Explicit rules Kimi must follow:
 - do not invent a `TranscriptionJob` model
 - use `AiJob` as the unified async job abstraction
 - do not treat historical planning docs as higher priority than repo truth
-- first runnable loop is `text interaction -> AI extraction -> salesperson confirmation -> customer update`
+- first runnable loop remains `text interaction -> AI extraction -> salesperson confirmation -> customer update`
 - do not base work on a local dirty worktree or ad hoc exported folders
 
 Current baseline facts:
 
-- Supabase is connected and the app is already runnable
-- Slice 1 is the implementation starting point
-- remote `main` should become the only truth source before Kimi starts the next round
+- the app is already runnable
+- text interaction creation, confirmation, customer writeback, and single-file upload already exist
+- `AiJob` queue / running / callback / mock worker flow already exists on the CRM side
+- CRM -> `n8n` dispatch and `n8n` workflow template already exist
+- start path is `/api/internal/ai-jobs/start`
+- callback path is `/api/internal/ai-jobs/callback`
+- current build baseline is green
+- `n8n` is not yet wired into the real provider path
 
 ---
 
@@ -69,7 +83,7 @@ Current baseline facts:
 
 Before delegating the next round:
 
-1. merge the current Slice 1 baseline into `main`
+1. merge the current baseline into `main`
 2. push remote `main`
 3. ensure unrelated local noise is not part of that merge
 
@@ -83,10 +97,16 @@ Important:
 Kimi must use this sequence:
 
 1. `git clone`
-2. `git checkout -b feat/slice2-3-confirmation-upload origin/main`
+2. create a slice-specific branch from `origin/main`
 3. implement only the requested slice
 4. run validation
-5. `git push -u origin feat/slice2-3-confirmation-upload`
+5. push the feature branch
+
+Suggested branch names from the current baseline:
+
+- `feat/slice5-n8n-integration`
+- `feat/phase2-crm-knowledge-chat-shell`
+- `feat/phase2-crm-reminders-import-shell`
 
 Kimi must:
 
@@ -154,18 +174,17 @@ These docs must be included:
 - `prisma.config.ts`
 - `docs/to-update.md`
 - `docs/implementation/mvp-slices.md`
+- `docs/implementation/kimi-agent-handoff.md`
+- `docs/implementation/kimi-agent-kickoff-prompt.md`
 - `docs/MVP-API-与工作流设计.md`
 - `docs/integrations/transcription-flow.md`
 - `docs/AI-信息提取Prompt模板.md`
 - `docs/advice.md`
 - `docs/background.md`
 
-### Optional reference docs
+Historical reference only:
 
-Allowed as lower-priority reference:
-
-- `docs/Product Requirements Document.md`
-- `docs/AI-CRM knowledge base.md`
+- `docs/implementation/kimi-agent-slice2-3-prompt.md`
 
 ### Default exclusions
 
@@ -187,7 +206,7 @@ Every slice delivery must contain:
 
 - directly applicable code changes
 - a concise change summary
-- a verification report with `pnpm typecheck`, `pnpm lint`, and when relevant `pnpm build`
+- a verification report with `npm run typecheck`, `npm run lint`, and when relevant `npm run build`
 - manual acceptance steps
 - a remaining issues list
 - doc updates if interfaces, prompts, env vars, or contracts changed
@@ -217,28 +236,25 @@ Reject the delivery if Kimi:
 
 ---
 
-## 8. Slice Targets
+## 8. Slice Targets From The Current Baseline
 
-### Round 1
+### Already landed
 
 - `Slice 0 + Slice 1`
-- text interaction creation
-- pending queue
-- confirmation-to-customer base flow
-
-### Round 2
-
 - `Slice 2 + Slice 3`
-- stronger confirmation form
-- explicit AI-vs-confirmed editing flow
-- file upload
-- `files` / `interactions` linkage
+- CRM-side baseline for `Slice 4`
 
-### Round 3
+### Next recommended round
 
-- `Slice 4 + Slice 5`
-- `AiJob` driven transcription callback flow
-- n8n or mock worker integration
+- `Slice 5`
+- `n8n` or equivalent worker-orchestration integration
+- keep `start`, callback idempotency, and CRM writeback boundaries unchanged
+
+### After that
+
+- `Slice 6`
+- OCR, summary, and extraction unification
+- Phase 2 CRM-side modules
 
 ---
 
@@ -253,9 +269,10 @@ Before accepting a Kimi delivery, verify:
 - it updates env and docs when required
 - it explains any remaining blockers clearly
 - it is based on clean remote `main`
+- it does not regress the existing green build baseline
 
 ---
 
 ## 10. One-line Rule
 
-Give Kimi enough truth to implement one slice well, not enough ambiguity to redesign the project by accident.
+Build on the current CRM baseline one slice at a time; do not redesign already-completed work just because `n8n` is still missing.

@@ -1,6 +1,23 @@
 # Kimi Agent Slice 2+3 Prompt
 
-Use this prompt after the current Slice 1 baseline has been merged into remote `main`.
+This document is kept as a historical reference.
+
+It was the slice-specific prompt for the round that implemented:
+
+- stronger confirmation flow
+- single-file upload
+- `files` / `interactions` linkage
+
+That round has already landed in the current repository baseline.
+
+Do not use this file as the default next-step prompt for new implementation work.
+
+For current delegation, use:
+
+- `docs/implementation/kimi-agent-handoff.md`
+- `docs/implementation/kimi-agent-kickoff-prompt.md`
+
+The original archived prompt is preserved below.
 
 ```text
 You are working on an existing repository. Follow the repository truth and implement only the requested slice. Do not redesign the project and do not expand scope.

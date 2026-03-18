@@ -26,15 +26,21 @@ export interface CreateCustomerInput {
   ownerId?: string
 }
 
-function parseEnumValue<T extends Record<string, string>>(
+const interestLevels = Object.values(InterestLevel)
+const budgetRanges = Object.values(BudgetRange)
+const decisionStages = Object.values(DecisionStage)
+const selfCareLevels = Object.values(SelfCareLevel)
+const careNeedLevels = Object.values(CareNeedLevel)
+
+function parseEnumValue<T extends string>(
   value: string | undefined,
-  enumObject: T,
-): T[keyof T] | undefined {
-  if (!value) {
+  allowedValues: readonly T[],
+): T | undefined {
+  if (!value || !allowedValues.includes(value as T)) {
     return undefined
   }
 
-  return (enumObject as Record<string, T[keyof T]>)[value]
+  return value as T
 }
 
 export async function createCustomerFromInteraction(input: CreateCustomerInput) {
@@ -50,13 +56,13 @@ export async function createCustomerFromInteraction(input: CreateCustomerInput) 
       age: input.age ?? null,
       gender: input.gender ?? null,
       customerStatus: CustomerStatus.lead,
-      interestLevel: parseEnumValue(input.interestLevel, InterestLevel),
-      budgetRange: parseEnumValue(input.budgetRange, BudgetRange),
-      decisionStage: parseEnumValue(input.decisionStage, DecisionStage),
+      interestLevel: parseEnumValue(input.interestLevel, interestLevels),
+      budgetRange: parseEnumValue(input.budgetRange, budgetRanges),
+      decisionStage: parseEnumValue(input.decisionStage, decisionStages),
       triggerReason: input.triggerReason ?? null,
       healthCondition: input.healthCondition ?? null,
-      selfCareLevel: parseEnumValue(input.selfCareLevel, SelfCareLevel),
-      careNeedLevel: parseEnumValue(input.careNeedLevel, CareNeedLevel),
+      selfCareLevel: parseEnumValue(input.selfCareLevel, selfCareLevels),
+      careNeedLevel: parseEnumValue(input.careNeedLevel, careNeedLevels),
       profileNotes: input.profileNotes ?? null,
       ownerId: input.ownerId ?? null,
       lastInteractionAt: new Date(),

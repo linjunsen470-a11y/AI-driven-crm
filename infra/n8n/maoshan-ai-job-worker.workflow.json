@@ -1,0 +1,437 @@
+{
+  "name": "Maoshan AI Job Worker",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "maoshan-ai-job",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "Webhook_Receive_Job",
+      "name": "Receive Job",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.headers.authorization }}",
+              "rightValue": "=Bearer {{$env.N8N_WEBHOOK_SECRET}}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "If_Verify_Secret",
+      "name": "Verify Secret",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        500,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body ?? $json;\nreturn [{\n  json: {\n    ...body,\n    jobId: body.job?.id,\n    jobType: body.job?.jobType,\n  },\n}];"
+      },
+      "id": "Code_Normalize_Payload",
+      "name": "Normalize Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        760,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.crm.startUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$json.crm.authToken}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"jobId\":\"{{$json.jobId}}\"}",
+        "options": {}
+      },
+      "id": "HTTP_Start_Job",
+      "name": "Start Job In CRM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1020,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Normalize Payload').item.json.jobType }}",
+                    "rightValue": "transcription",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Normalize Payload').item.json.jobType }}",
+                    "rightValue": "ocr",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Normalize Payload').item.json.jobType }}",
+                    "rightValue": "extraction",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": 3
+        }
+      },
+      "id": "Switch_By_Job_Type",
+      "name": "Switch By Job Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1280,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const originalName = $json.input?.originalName ?? '音频附件';\nreturn [{\n  json: {\n    ...$json,\n    callbackBody: {\n      jobId: $json.jobId,\n      status: 'completed',\n      output: {\n        transcription: `[N8N MOCK TRANSCRIPTION] 已处理 ${originalName}，客户表达了预约到访和确认预算区间的意向。`,\n      },\n    },\n  },\n}];"
+      },
+      "id": "Code_Mock_Transcription",
+      "name": "Mock Transcription Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const originalName = $json.input?.originalName ?? '图片附件';\nreturn [{\n  json: {\n    ...$json,\n    callbackBody: {\n      jobId: $json.jobId,\n      status: 'completed',\n      output: {\n        text: `[N8N MOCK OCR] 已识别 ${originalName} 中的客户姓名、联系电话和咨询意向。`,\n        summary: '图片文字已识别，可继续进入结构化提取。',\n      },\n    },\n  },\n}];"
+      },
+      "id": "Code_Mock_OCR",
+      "name": "Mock OCR Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const sourceText = $json.input?.sourceText ?? '客户电话咨询项目，计划近期到访。';\nreturn [{\n  json: {\n    ...$json,\n    callbackBody: {\n      jobId: $json.jobId,\n      status: 'completed',\n      output: {\n        summary: '客户主动咨询养老社区方案，短期内有到访意向。',\n        salesSuggestion: '优先确认客户预算和参观时间，并补充健康状态与同住安排。',\n        extractedData: {\n          name: '待销售确认',\n          triggerReason: sourceText,\n          decisionStage: 'visit_ready',\n          interestLevel: 'high'\n        },\n        confidence: {\n          decisionStage: 0.82,\n          interestLevel: 0.76\n        },\n        extractionVersion: 'n8n-mock-v1',\n        modelName: 'n8n-mock-worker'\n      },\n    },\n  },\n}];"
+      },
+      "id": "Code_Mock_Extraction",
+      "name": "Mock Extraction Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    ...$json,\n    callbackBody: {\n      jobId: $json.jobId,\n      status: 'failed',\n      error: `Unsupported job type from n8n worker: ${$json.jobType}`,\n    },\n  },\n}];"
+      },
+      "id": "Code_Unsupported_Job",
+      "name": "Unsupported Job Type",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        540
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.crm.callbackUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$json.crm.authToken}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.callbackBody }}",
+        "options": {}
+      },
+      "id": "HTTP_Callback_To_CRM",
+      "name": "Callback To CRM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1810,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"success\":true,\"jobId\":\"{{$json.jobId}}\",\"jobType\":\"{{$json.jobType}}\"}",
+        "options": {}
+      },
+      "id": "Respond_Success",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        2070,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"success\":false,\"error\":\"Unauthorized webhook request\"}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "id": "Respond_Unauthorized",
+      "name": "Respond Unauthorized",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        760,
+        520
+      ]
+    }
+  ],
+  "connections": {
+    "Receive Job": {
+      "main": [
+        [
+          {
+            "node": "Verify Secret",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Secret": {
+      "main": [
+        [
+          {
+            "node": "Normalize Payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Unauthorized",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Payload": {
+      "main": [
+        [
+          {
+            "node": "Start Job In CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start Job In CRM": {
+      "main": [
+        [
+          {
+            "node": "Switch By Job Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch By Job Type": {
+      "main": [
+        [
+          {
+            "node": "Mock Transcription Output",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mock OCR Output",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mock Extraction Output",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Unsupported Job Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mock Transcription Output": {
+      "main": [
+        [
+          {
+            "node": "Callback To CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mock OCR Output": {
+      "main": [
+        [
+          {
+            "node": "Callback To CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mock Extraction Output": {
+      "main": [
+        [
+          {
+            "node": "Callback To CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Unsupported Job Type": {
+      "main": [
+        [
+          {
+            "node": "Callback To CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Callback To CRM": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "versionId": "maoshan-ai-job-worker-v1"
+}

@@ -1,10 +1,43 @@
 # MVP Slices
 
-这份文档把当前 AI CRM 的开发工作，重新整理成适合持续 vibe coding 的纵向切片。
+这份文档把当前 AI CRM 的开发工作整理成适合持续推进的纵向切片。
 
 核心原则不是“一次把所有能力补齐”，而是：
 
 `每次只推进一个能验证价值的闭环。`
+
+---
+
+## 当前状态快照
+
+截至当前仓库基线：
+
+- Slice 0：已完成
+- Slice 1：已完成
+- Slice 2：已完成
+- Slice 3：已完成
+- Slice 4：CRM 侧契约已完成，`n8n` 侧未完成
+- Slice 5：Batch 1 已开始
+- Slice 6：未开始
+- Slice 7：未开始
+
+当前已经在代码里落地的内容：
+
+- 文本 interaction 创建
+- 待确认队列
+- interaction 详情与确认写回 customer
+- 单文件上传与 `files` / `interactions` 关联
+- `AiJob` 路由、callback、mock worker、幂等回写
+- CRM -> `n8n` webhook 派发
+- `n8n` -> CRM `start` / `callback` 契约
+- `infra/n8n` workflow 模板
+- 运行时 prompt 文件位于 `prompts/`
+
+当前基线验证状态：
+
+- `npm run typecheck` 通过
+- `npm run lint` 通过
+- `npm run build` 通过
 
 ---
 
@@ -25,7 +58,7 @@
 ### 不应包含
 
 - 真正的 AI 调用
-- n8n
+- `n8n`
 - 文件上传复杂链路
 
 ### 完成标准
@@ -33,6 +66,10 @@
 - 项目能启动
 - Prisma client 能正常导入
 - 文档不再出现明显冲突的技术路线
+
+### 当前状态
+
+已完成。
 
 ---
 
@@ -62,7 +99,7 @@
 
 - 音频上传
 - OCR
-- n8n
+- `n8n`
 - 批量导入
 
 ### 完成标准
@@ -71,6 +108,10 @@
 - 能看到待确认列表
 - 能确认并写入 customers
 - timeline 或详情页能看到这次 interaction
+
+### 当前状态
+
+已完成。
 
 ---
 
@@ -98,6 +139,10 @@
 - interaction 的 `confirmationStatus` 状态完整
 - customer 主数据与 AI 推断数据边界清晰
 
+### 当前状态
+
+已完成。
+
 ---
 
 ## Slice 3：文件上传与 interaction 关联
@@ -124,6 +169,10 @@
 - 能上传单个文件
 - 数据库能追踪文件来源和所属 interaction
 - UI 能看见上传后的处理状态
+
+### 当前状态
+
+已完成。
 
 ---
 
@@ -154,13 +203,28 @@
 - transcript 能被写回 interaction
 - 失败能被记录并可重试
 
+### 当前状态
+
+CRM 侧契约已经落地：
+
+- `AiJob` 输入输出类型已显式化
+- callback 路径已统一为 `/api/internal/ai-jobs/callback`
+- 本地 mock worker 已存在
+- CRM 侧状态流与幂等回写已存在
+
+仍未完成：
+
+- 真实 provider 接线
+- `n8n` workflow 承接
+- 端到端人工验收链路
+
 ---
 
 ## Slice 5：n8n 接管耗时工作
 
 ### 目标
 
-把已经在 CRM 端跑通的异步契约交给 n8n 承接。
+把已经在 CRM 端跑通的异步契约交给 `n8n` 承接。
 
 ### 应包含
 
@@ -172,13 +236,30 @@
 
 ### 不应包含
 
-- 把 confirmed customer 写入逻辑搬到 n8n
-- 在 n8n 内维护主数据状态
+- 把 confirmed customer 写入逻辑搬到 `n8n`
+- 在 `n8n` 内维护主数据状态
 
 ### 完成标准
 
-- n8n 只负责异步处理，不负责 CRM 业务真相
+- `n8n` 只负责异步处理，不负责 CRM 业务真相
 - CRM 仍然是最终状态写入点
+
+### 当前状态
+
+Batch 1 已落地：
+
+- CRM 侧已有自动 webhook 派发器
+- `.env.example` 已补齐 `N8N_AI_JOB_WEBHOOK_PATH`、`N8N_REQUEST_TIMEOUT_MS`、`CRM_AI_JOB_START_PATH`
+- 已新增 `/api/internal/ai-jobs/start`
+- 已新增 `/api/internal/ai-jobs/dispatch`
+- `infra/n8n/maoshan-ai-job-worker.workflow.json` 可作为本地 mock workflow 基线
+
+仍未完成：
+
+- 真实 provider 接线
+- 存储读取
+- 更细粒度重试与监控
+- 端到端人工验收
 
 ---
 
@@ -198,6 +279,10 @@
 
 - 音频、图片、文本三类 interaction 有统一处理框架
 
+### 当前状态
+
+尚未开始。
+
 ---
 
 ## Slice 7：Phase 2 能力
@@ -213,6 +298,10 @@
 ### 说明
 
 这些能力都值得做，但不应该压进最初可运行闭环。
+
+### 当前状态
+
+数据表大多已存在，但功能实现尚未完成。
 
 ---
 
@@ -247,13 +336,12 @@
 
 - 基于现有 `prisma/schema.prisma`
 - 不新增表
-- 只实现文本 interaction 场景
-- 只修改 `app/api`、`features/interactions`、`features/customers`
-- 需要同时补最小 UI 与最小校验
+- 只实现当前指定 slice
+- 保持业务逻辑在 `features/`
 - 完成后给出验证步骤
 
 ---
 
 ## 一句话结论
 
-先做“文本交互闭环”，再做“文件上传”，最后做“转录异步化”，这是当前仓库最稳、也最适合 vibe coding 的推进顺序。
+当前仓库已经完成文本闭环、确认流和单文件上传；下一步优先把现有 `AiJob` 契约接到 `n8n`，而不是重做已经落地的 CRM 主链路。

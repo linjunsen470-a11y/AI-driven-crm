@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 
+import { jsonObjectSchema } from "@/features/ai/server/ai-job-contracts"
 import { aiJobService } from "@/features/ai/server/ai-job-service"
 
 const callbackSchema = z.object({
   jobId: z.string().uuid(),
   status: z.enum(["completed", "failed"]),
-  output: z.record(z.unknown()).optional(),
+  output: jsonObjectSchema.optional(),
   error: z.string().optional(),
 })
 

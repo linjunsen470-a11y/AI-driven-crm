@@ -15,6 +15,12 @@ interface RequestInteractionProcessingInput {
   fileId?: string
 }
 
+function isProcessableFileCategory(
+  category: FileCategory,
+): category is typeof FileCategory.audio | typeof FileCategory.image {
+  return category === FileCategory.audio || category === FileCategory.image
+}
+
 function resolveJobType(category: FileCategory) {
   switch (category) {
     case FileCategory.audio:
@@ -79,9 +85,7 @@ export async function requestInteractionProcessing(
 
   const selectedFile = input.fileId
     ? interaction.files.find((file) => file.id === input.fileId)
-    : interaction.files.find((file) =>
-        [FileCategory.audio, FileCategory.image].includes(file.category),
-      )
+    : interaction.files.find((file) => isProcessableFileCategory(file.category))
 
   if (input.fileId && !selectedFile) {
     throw new Error("Selected file does not belong to this interaction")

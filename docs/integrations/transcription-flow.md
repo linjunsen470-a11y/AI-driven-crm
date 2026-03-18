@@ -8,10 +8,33 @@ It is intentionally aligned with the current repository state:
 
 - CRM source of truth lives in Next.js + Prisma
 - the current schema already has `files`, `interactions`, and `ai_jobs`
-- asynchronous transcription should use `AiJob` with `jobType = transcription`
-- n8n is a worker/orchestrator, not the system of record
+- asynchronous transcription uses `AiJob` with `jobType = transcription`
+- the CRM-side contract and callback path already exist
+- `n8n` is a worker/orchestrator, not the system of record
 
-This document describes the target integration pattern for audio processing after the text-first MVP is stable.
+This document describes the target integration pattern for audio processing after the current CRM baseline.
+
+---
+
+## Current Repo Status
+
+Already landed in code:
+
+- file upload metadata flow
+- `AiJob` creation and CRM-side state updates
+- unified callback route at `/api/internal/ai-jobs/callback`
+- CRM-side start route at `/api/internal/ai-jobs/start`
+- CRM -> `n8n` webhook dispatcher
+- local mock worker for contract verification
+- `infra/n8n/maoshan-ai-job-worker.workflow.json` baseline workflow
+- runtime async-processing prompt assets under `prompts/`
+
+Still pending:
+
+- real provider wiring
+- storage fetch inside the worker path
+- richer retry and observability handling
+- full end-to-end manual acceptance of the audio path
 
 ---
 
@@ -22,7 +45,7 @@ This flow covers:
 1. audio file upload metadata
 2. interaction creation
 3. transcription job creation
-4. worker execution through n8n or a local worker
+4. worker execution through `n8n` or a local worker
 5. CRM callback writeback
 6. UI-visible status changes
 
@@ -41,7 +64,7 @@ This flow does not define:
 2. binary files stay out of PostgreSQL
 3. all async work is traceable through `ai_jobs`
 4. callback handlers must be authenticated and idempotent
-5. worker logic may evolve from local mock -> local service -> n8n without changing CRM contracts too much
+5. worker logic may evolve from local mock -> local service -> `n8n` without changing CRM contracts too much
 
 ---
 
@@ -99,16 +122,15 @@ Do not introduce a parallel `transcription_jobs` table unless the project later 
 
 ## Suggested Processing Order
 
-### Stage 0: text-first MVP
+### Stage 0: stabilized CRM baseline
 
-Before building this full flow, first stabilize:
+Before wiring `n8n`, keep these existing parts intact:
 
 - manual text interaction creation
 - AI extraction output display
 - salesperson confirmation
 - customer update flow
-
-This reduces variables and keeps the first shipping loop small.
+- `AiJob` callback contract
 
 ### Stage 1: upload and metadata
 
@@ -132,8 +154,9 @@ Preferred payload shape:
 - `storageBucket`
 - `storagePath`
 - `mimeType`
+- `startUrl`
 - `callbackUrl`
-- `languageHint`
+- `authToken`
 
 The worker should fetch the binary from storage, not receive the full audio file inline from CRM.
 
@@ -184,7 +207,13 @@ Recommended practical mapping:
 
 ## Interface Contract Guidance
 
-This document stays human-readable on purpose.
+The CRM-side contract should stay explicit and versionable.
+
+At minimum, keep the following internal job types explicit in code:
+
+- `transcription`
+- `ocr`
+- `extraction`
 
 If the team later needs a machine-readable contract for AI-assisted generation or workflow testing, add:
 
@@ -198,7 +227,7 @@ Keep that JSON file derived from the real CRM contract, not the other way around
 
 ### Option A: local mock worker
 
-Best for the first implementation slice.
+Already present in the current repository baseline.
 
 Use it when you want to verify:
 
@@ -207,21 +236,22 @@ Use it when you want to verify:
 - idempotent writes
 - UI state changes
 
-without depending on n8n or an external provider.
+without depending on `n8n` or an external provider.
 
-### Option B: n8n workflow
+### Option B: `n8n` workflow
 
-Recommended after the CRM-side contract is stable.
+Batch 1 of this option is already present in `infra/n8n`.
 
-Use n8n for:
+Use `n8n` for:
 
 - webhook entry
+- CRM start acknowledgement
 - storage fetch
 - provider orchestration
 - retries
 - callback delivery
 
-Do not move customer merge logic or confirmed CRM writes into n8n.
+Do not move customer merge logic or confirmed CRM writes into `n8n`.
 
 ---
 
@@ -260,12 +290,13 @@ Workers should:
 
 ## What To Build Next
 
-Recommended implementation order:
+Recommended implementation order from the current baseline:
 
-1. text-only interaction flow
-2. file upload adapter
-3. `AiJob` creation and local mock worker
-4. authenticated callback route
-5. n8n workflow integration
+1. keep the existing CRM callback contract unchanged
+2. reuse the existing CRM dispatch payload and `start` route
+3. fetch storage objects inside the worker path
+4. call the real transcription provider
+5. callback into CRM through `/api/internal/ai-jobs/callback`
+6. extend the same model to OCR and extraction later
 
-That order is slower at the start but much safer overall, especially when using vibe coding.
+That order keeps the system stable while replacing the mock worker with real orchestration.

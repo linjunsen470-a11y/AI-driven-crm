@@ -1,6 +1,11 @@
 import { db } from "@/lib/db"
 
-import { extractCustomerDataFromText } from "@/features/ai/server/extract-customer-data"
+import { toPrismaJsonObject } from "@/features/ai/server/ai-job-contracts"
+import {
+  extractCustomerDataFromText,
+  TEXT_EXTRACTION_MODEL_NAME,
+  TEXT_EXTRACTION_VERSION,
+} from "@/features/ai/server/extract-customer-data"
 import type { CreateInteractionInput } from "@/features/interactions/schemas/create-interaction"
 
 export async function createInteraction(input: CreateInteractionInput) {
@@ -26,10 +31,10 @@ export async function createInteraction(input: CreateInteractionInput) {
       processedAt: isTextInteraction ? now : null,
       aiSummary: extraction?.summary ?? null,
       aiSalesSuggestion: extraction?.salesSuggestion ?? null,
-      aiExtractedData: extraction?.extractedData ?? {},
-      aiConfidence: extraction?.confidence ?? {},
-      extractionVersion: extraction ? "placeholder-rule-based-v1" : null,
-      modelName: extraction ? "rule-based-extractor" : null,
+      aiExtractedData: toPrismaJsonObject(extraction?.extractedData),
+      aiConfidence: toPrismaJsonObject(extraction?.confidence),
+      extractionVersion: extraction ? TEXT_EXTRACTION_VERSION : null,
+      modelName: extraction ? TEXT_EXTRACTION_MODEL_NAME : null,
       confirmationStatus: "pending",
     },
     select: {

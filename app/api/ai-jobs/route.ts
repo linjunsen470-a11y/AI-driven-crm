@@ -2,6 +2,7 @@ import { AiJobType } from "@/generated/prisma/client"
 import { NextResponse } from "next/server"
 import { ZodError, z } from "zod"
 
+import { jsonObjectSchema } from "@/features/ai/server/ai-job-contracts"
 import { aiJobService } from "@/features/ai/server/ai-job-service"
 
 const createJobSchema = z.object({
@@ -18,7 +19,7 @@ const createJobSchema = z.object({
   ]),
   interactionId: z.string().uuid().optional(),
   knowledgeDocumentId: z.string().uuid().optional(),
-  inputPayload: z.record(z.unknown()).optional(),
+  inputPayload: jsonObjectSchema.optional(),
 })
 
 const listJobsQuerySchema = z.object({

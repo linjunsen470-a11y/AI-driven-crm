@@ -1,5 +1,10 @@
 import { AiJobStatus, AiJobType } from "@/generated/prisma/client"
 
+import type {
+  ExtractionJobOutput,
+  OcrJobOutput,
+  TranscriptionJobOutput,
+} from "@/features/ai/server/ai-job-contracts"
 import { extractCustomerDataFromText } from "@/features/ai/server/extract-customer-data"
 import { aiJobService } from "@/features/ai/server/ai-job-service"
 
@@ -8,15 +13,15 @@ function getPayloadValue(payload: Record<string, unknown>, key: string) {
   return typeof value === "string" ? value : undefined
 }
 
-function buildMockTranscription(payload: Record<string, unknown>) {
+function buildMockTranscription(payload: Record<string, unknown>): TranscriptionJobOutput {
   const originalName = getPayloadValue(payload, "originalName") ?? "音频附件"
 
   return {
-    transcription: `[MOCK TRANSCRIPTION] 已处理 ${originalName}。客户来电表达了进一步了解项目、安排到访和确认预算范围的意向。`,
+    transcription: `[MOCK TRANSCRIPTION] 已处理 ${originalName}。客户表达了进一步了解项目、安排到访和确认预算范围的意向。`,
   }
 }
 
-function buildMockOcr(payload: Record<string, unknown>) {
+function buildMockOcr(payload: Record<string, unknown>): OcrJobOutput {
   const originalName = getPayloadValue(payload, "originalName") ?? "图片附件"
 
   return {
@@ -25,8 +30,11 @@ function buildMockOcr(payload: Record<string, unknown>) {
   }
 }
 
-async function buildMockExtraction(payload: Record<string, unknown>) {
-  const sourceText = getPayloadValue(payload, "sourceText") ?? "客户电话咨询项目，准备近期到访。"
+async function buildMockExtraction(
+  payload: Record<string, unknown>,
+): Promise<ExtractionJobOutput> {
+  const sourceText =
+    getPayloadValue(payload, "sourceText") ?? "客户电话咨询项目，准备近期到访。"
   const extraction = await extractCustomerDataFromText(sourceText)
 
   return {
@@ -72,7 +80,10 @@ export async function runMockAiJob(jobId: string) {
       await aiJobService.completeJob(jobId, await buildMockExtraction(payload))
       break
     default:
-      await aiJobService.failJob(jobId, `Mock worker does not support job type: ${runningJob.jobType}`)
+      await aiJobService.failJob(
+        jobId,
+        `Mock worker does not support job type: ${runningJob.jobType}`,
+      )
       break
   }
 

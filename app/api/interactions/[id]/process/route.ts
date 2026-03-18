@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { ZodError, z } from "zod"
 
+import { dispatchAiJob } from "@/features/ai/server/ai-job-dispatcher"
 import { runMockAiJob } from "@/features/ai/server/mock-ai-worker"
 import { requestInteractionProcessing } from "@/features/ai/server/request-interaction-processing"
 
@@ -43,9 +44,12 @@ export async function POST(request: Request, { params }: RouteParams) {
       )
     }
 
+    const dispatch = result.reused ? null : await dispatchAiJob(result.job.id)
+
     return NextResponse.json(
       {
         data: result,
+        dispatch,
       },
       { status: result.reused ? 200 : 201 },
     )

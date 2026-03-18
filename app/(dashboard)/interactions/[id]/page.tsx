@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { format } from "date-fns"
 import { zhCN } from "date-fns/locale"
 import {
@@ -214,16 +214,13 @@ export default function InteractionDetailPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isConfirming, setIsConfirming] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [isRequestingProcessing, setIsRequestingProcessing] = useState(false)
   const [uploadedFiles, setUploadedFiles] = useState<InteractionDetail["files"]>([])
   const id = params.id
 
-  async function refreshInteraction() {
-    if (!id) {
-      return
-    }
-
+  const refreshInteraction = useCallback(async () => {
     const response = await fetch(`/api/interactions/${id}`)
 
     if (!response.ok) {
@@ -252,7 +249,7 @@ export default function InteractionDetailPage() {
       careNeedLevel: (extracted.careNeedLevel as string) || "",
       profileNotes: (extracted.profileNotes as string) || "",
     })
-  }
+  }, [id])
 
   useEffect(() => {
     if (!id) {
@@ -266,7 +263,7 @@ export default function InteractionDetailPage() {
       .finally(() => {
         setIsLoading(false)
       })
-  }, [id])
+  }, [id, refreshInteraction])
 
   function handleInputChange<K extends keyof EditableCustomerData>(
     field: K,
@@ -297,6 +294,7 @@ export default function InteractionDetailPage() {
 
     setIsConfirming(true)
     setError(null)
+    setNotice(null)
 
     try {
       const sanitizedCustomerData =
@@ -357,6 +355,7 @@ export default function InteractionDetailPage() {
 
     setIsUploading(true)
     setError(null)
+    setNotice(null)
 
     try {
       const formData = new FormData()
@@ -397,6 +396,7 @@ export default function InteractionDetailPage() {
 
     setIsRequestingProcessing(true)
     setError(null)
+    setNotice(null)
 
     try {
       const response = await fetch(`/api/interactions/${id}/process`, {
@@ -414,6 +414,16 @@ export default function InteractionDetailPage() {
 
       if (!response.ok) {
         throw new Error(payload.error || "创建处理任务失败")
+      }
+
+      if (payload.dispatch?.message) {
+        setNotice(payload.dispatch.message)
+      } else if (mode === "mock") {
+        setNotice("模拟处理已执行。")
+      } else if (payload.data?.reused) {
+        setNotice("已复用现有任务。")
+      } else {
+        setNotice("处理任务已创建。")
       }
 
       await refreshInteraction()
@@ -514,6 +524,12 @@ export default function InteractionDetailPage() {
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      {!error && notice ? (
+        <Alert>
+          <AlertDescription>{notice}</AlertDescription>
         </Alert>
       ) : null}
 

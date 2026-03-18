@@ -24,15 +24,21 @@ export interface UpdateCustomerInput {
   profileNotes?: string
 }
 
-function parseEnumValue<T extends Record<string, string>>(
+const interestLevels = Object.values(InterestLevel)
+const budgetRanges = Object.values(BudgetRange)
+const decisionStages = Object.values(DecisionStage)
+const selfCareLevels = Object.values(SelfCareLevel)
+const careNeedLevels = Object.values(CareNeedLevel)
+
+function parseEnumValue<T extends string>(
   value: string | undefined,
-  enumObject: T,
-): T[keyof T] | undefined {
-  if (!value) {
+  allowedValues: readonly T[],
+): T | undefined {
+  if (!value || !allowedValues.includes(value as T)) {
     return undefined
   }
 
-  return (enumObject as Record<string, T[keyof T]>)[value]
+  return value as T
 }
 
 export async function updateCustomerFromConfirmation(
@@ -52,21 +58,21 @@ export async function updateCustomerFromConfirmation(
   if (input.age !== undefined) updateData.age = input.age ?? null
   if (input.gender !== undefined) updateData.gender = input.gender ?? null
   if (input.interestLevel !== undefined) {
-    updateData.interestLevel = parseEnumValue(input.interestLevel, InterestLevel)
+    updateData.interestLevel = parseEnumValue(input.interestLevel, interestLevels)
   }
   if (input.budgetRange !== undefined) {
-    updateData.budgetRange = parseEnumValue(input.budgetRange, BudgetRange)
+    updateData.budgetRange = parseEnumValue(input.budgetRange, budgetRanges)
   }
   if (input.decisionStage !== undefined) {
-    updateData.decisionStage = parseEnumValue(input.decisionStage, DecisionStage)
+    updateData.decisionStage = parseEnumValue(input.decisionStage, decisionStages)
   }
   if (input.triggerReason !== undefined) updateData.triggerReason = input.triggerReason ?? null
   if (input.healthCondition !== undefined) updateData.healthCondition = input.healthCondition ?? null
   if (input.selfCareLevel !== undefined) {
-    updateData.selfCareLevel = parseEnumValue(input.selfCareLevel, SelfCareLevel)
+    updateData.selfCareLevel = parseEnumValue(input.selfCareLevel, selfCareLevels)
   }
   if (input.careNeedLevel !== undefined) {
-    updateData.careNeedLevel = parseEnumValue(input.careNeedLevel, CareNeedLevel)
+    updateData.careNeedLevel = parseEnumValue(input.careNeedLevel, careNeedLevels)
   }
   if (input.profileNotes !== undefined) updateData.profileNotes = input.profileNotes ?? null
 

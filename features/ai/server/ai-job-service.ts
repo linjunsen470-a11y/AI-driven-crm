@@ -6,6 +6,10 @@ import {
   ProcessingStatus,
 } from "@/generated/prisma/client"
 
+import {
+  toPrismaJsonObject,
+  type ExtractionJobOutput,
+} from "@/features/ai/server/ai-job-contracts"
 import { db } from "@/lib/db"
 
 export interface CreateAiJobInput {
@@ -16,7 +20,7 @@ export interface CreateAiJobInput {
   followupRecommendationId?: string
   targetType?: string
   targetId?: string
-  inputPayload?: Record<string, unknown>
+  inputPayload?: object
   ownerId?: string
 }
 
@@ -37,6 +41,40 @@ function getInputPayloadValue(payload: Prisma.JsonValue, key: string) {
   return typeof value === "string" ? value : undefined
 }
 
+function toExtractionOutput(payload: object): ExtractionJobOutput {
+  const output = payload as Record<string, unknown>
+
+  return {
+    summary: typeof output.summary === "string" ? output.summary : "",
+    salesSuggestion:
+      typeof output.salesSuggestion === "string" ? output.salesSuggestion : "",
+    extractedData:
+      typeof output.extractedData === "object" && output.extractedData !== null
+        ? (output.extractedData as ExtractionJobOutput["extractedData"])
+        : {},
+    confidence:
+      typeof output.confidence === "object" && output.confidence !== null
+        ? (output.confidence as ExtractionJobOutput["confidence"])
+        : {},
+    extractionVersion:
+      typeof output.extractionVersion === "string" ? output.extractionVersion : "",
+    modelName: typeof output.modelName === "string" ? output.modelName : "",
+  }
+}
+
+async function setRelatedFileStatus(inputPayload: Prisma.JsonValue, status: FileStatus) {
+  const fileId = getInputPayloadValue(inputPayload, "fileId")
+
+  if (!fileId) {
+    return
+  }
+
+  await db.file.update({
+    where: { id: fileId },
+    data: { status },
+  })
+}
+
 export class AiJobService {
   async createJob(input: CreateAiJobInput) {
     const job = await db.aiJob.create({
@@ -48,7 +86,7 @@ export class AiJobService {
         followupRecommendationId: input.followupRecommendationId,
         targetType: input.targetType,
         targetId: input.targetId,
-        inputPayload: input.inputPayload ?? {},
+        inputPayload: toPrismaJsonObject(input.inputPayload),
         status: AiJobStatus.queued,
         ownerId: input.ownerId,
       },
@@ -178,8 +216,30 @@ export class AiJobService {
       throw new Error("Job not found")
     }
 
-    if (existingJob.status === AiJobStatus.completed || existingJob.status === AiJobStatus.cancelled) {
+    if (
+      existingJob.status === AiJobStatus.completed ||
+      existingJob.status === AiJobStatus.cancelled
+    ) {
       throw new Error("Job is already finalized")
+    }
+
+    if (existingJob.status === AiJobStatus.running) {
+      return db.aiJob.findUniqueOrThrow({
+        where: { id: jobId },
+        select: {
+          id: true,
+          jobType: true,
+          status: true,
+          interactionId: true,
+          inputPayload: true,
+          outputPayload: true,
+          errorMessage: true,
+          retryCount: true,
+          startedAt: true,
+          finishedAt: true,
+          createdAt: true,
+        },
+      })
     }
 
     const updateData: Prisma.AiJobUpdateInput = {
@@ -223,16 +283,7 @@ export class AiJobService {
       })
     }
 
-    const fileId = getInputPayloadValue(job.inputPayload, "fileId")
-
-    if (fileId) {
-      await db.file.update({
-        where: { id: fileId },
-        data: {
-          status: FileStatus.processing,
-        },
-      })
-    }
+    await setRelatedFileStatus(job.inputPayload, FileStatus.processing)
 
     return job
   }
@@ -261,29 +312,33 @@ export class AiJobService {
     return this.markJobRunning(candidate.id)
   }
 
-  async completeJob(jobId: string, outputPayload: Record<string, unknown>) {
+  async completeJob(jobId: string, outputPayload: object) {
+    const normalizedOutput = outputPayload as Record<string, unknown>
+
     const job = await db.aiJob.update({
       where: { id: jobId },
       data: {
         status: AiJobStatus.completed,
-        outputPayload,
+        outputPayload: toPrismaJsonObject(outputPayload),
         finishedAt: new Date(),
       },
-      include: {
-        interaction: true,
+      select: {
+        id: true,
+        jobType: true,
+        status: true,
+        interactionId: true,
+        inputPayload: true,
+        outputPayload: true,
+        errorMessage: true,
+        retryCount: true,
+        startedAt: true,
+        finishedAt: true,
+        createdAt: true,
       },
     })
 
-    if (!job.interactionId || !job.interaction) {
-      const fileId = getInputPayloadValue(job.inputPayload, "fileId")
-      if (fileId) {
-        await db.file.update({
-          where: { id: fileId },
-          data: {
-            status: FileStatus.ready,
-          },
-        })
-      }
+    if (!job.interactionId) {
+      await setRelatedFileStatus(job.inputPayload, FileStatus.ready)
       return job
     }
 
@@ -295,52 +350,42 @@ export class AiJobService {
             processingStatus: ProcessingStatus.completed,
             processedAt: new Date(),
             transcription:
-              typeof outputPayload.transcription === "string"
-                ? outputPayload.transcription
+              typeof normalizedOutput.transcription === "string"
+                ? normalizedOutput.transcription
                 : null,
           },
         })
         break
-      case AiJobType.extraction:
+      case AiJobType.extraction: {
+        const extractionOutput = toExtractionOutput(outputPayload)
+
         await db.interaction.update({
           where: { id: job.interactionId },
           data: {
             processingStatus: ProcessingStatus.completed,
             processedAt: new Date(),
-            aiSummary:
-              typeof outputPayload.summary === "string" ? outputPayload.summary : null,
-            aiSalesSuggestion:
-              typeof outputPayload.salesSuggestion === "string"
-                ? outputPayload.salesSuggestion
-                : null,
-            aiExtractedData:
-              typeof outputPayload.extractedData === "object" &&
-              outputPayload.extractedData !== null
-                ? (outputPayload.extractedData as Record<string, unknown>)
-                : {},
-            aiConfidence:
-              typeof outputPayload.confidence === "object" &&
-              outputPayload.confidence !== null
-                ? (outputPayload.confidence as Record<string, number>)
-                : {},
-            extractionVersion:
-              typeof outputPayload.extractionVersion === "string"
-                ? outputPayload.extractionVersion
-                : null,
-            modelName:
-              typeof outputPayload.modelName === "string" ? outputPayload.modelName : null,
+            aiSummary: extractionOutput.summary || null,
+            aiSalesSuggestion: extractionOutput.salesSuggestion || null,
+            aiExtractedData: toPrismaJsonObject(extractionOutput.extractedData),
+            aiConfidence: toPrismaJsonObject(extractionOutput.confidence),
+            extractionVersion: extractionOutput.extractionVersion || null,
+            modelName: extractionOutput.modelName || null,
           },
         })
         break
+      }
       case AiJobType.ocr:
         await db.interaction.update({
           where: { id: job.interactionId },
           data: {
             processingStatus: ProcessingStatus.completed,
             processedAt: new Date(),
-            transcription: typeof outputPayload.text === "string" ? outputPayload.text : null,
+            transcription:
+              typeof normalizedOutput.text === "string" ? normalizedOutput.text : null,
             aiSummary:
-              typeof outputPayload.summary === "string" ? outputPayload.summary : null,
+              typeof normalizedOutput.summary === "string"
+                ? normalizedOutput.summary
+                : null,
           },
         })
         break
@@ -355,16 +400,7 @@ export class AiJobService {
         break
     }
 
-    const fileId = getInputPayloadValue(job.inputPayload, "fileId")
-
-    if (fileId) {
-      await db.file.update({
-        where: { id: fileId },
-        data: {
-          status: FileStatus.ready,
-        },
-      })
-    }
+    await setRelatedFileStatus(job.inputPayload, FileStatus.ready)
 
     return job
   }
@@ -377,8 +413,18 @@ export class AiJobService {
         errorMessage,
         finishedAt: new Date(),
       },
-      include: {
-        interaction: true,
+      select: {
+        id: true,
+        jobType: true,
+        status: true,
+        interactionId: true,
+        inputPayload: true,
+        outputPayload: true,
+        errorMessage: true,
+        retryCount: true,
+        startedAt: true,
+        finishedAt: true,
+        createdAt: true,
       },
     })
 
@@ -392,16 +438,7 @@ export class AiJobService {
       })
     }
 
-    const fileId = getInputPayloadValue(job.inputPayload, "fileId")
-
-    if (fileId) {
-      await db.file.update({
-        where: { id: fileId },
-        data: {
-          status: FileStatus.failed,
-        },
-      })
-    }
+    await setRelatedFileStatus(job.inputPayload, FileStatus.failed)
 
     return job
   }
